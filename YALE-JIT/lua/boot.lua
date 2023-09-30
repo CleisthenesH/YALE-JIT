@@ -8,11 +8,13 @@ function funct(wg)
 	print("test_button",wg.id,wg)
 end
 
-test_button1 = button{y=400, x=500, id = 1, text = "button 1"}
+test_button1 = button{y=400, x=500, id = 1, text = "Button 1"}
 test_button2 = button{y=600, x=500, id = 2, left_click = funct}
 
 function test_button1:left_click()
 	print("test_button",self.id,self)
+	self:set_keyframe{y=400, x=500}
+	self:push_keyframe{y=400, x=900, t = 1}
 end
 
 print("Boot Complete")

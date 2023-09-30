@@ -647,14 +647,14 @@ static void prevent_stale_pointers(struct wg_base_internal* const ptr)
     {
         call(ptr, click_off)
 
-            last_click = NULL;
+        last_click = NULL;
     }
 
     if (current_drop == ptr)
     {
         call(ptr, drag_end_no_drop)
 
-            widget_engine_state = ENGINE_STATE_IDLE;
+        widget_engine_state = ENGINE_STATE_IDLE;
         current_drop = NULL;
     }
 }
@@ -690,7 +690,7 @@ static void draw_widget(const struct wg_base_internal* const wg)
     al_draw_textf(debug_font, al_map_rgb_f(0, 1, 0), 10, 10, ALLEGRO_ALIGN_LEFT,
         "Self: %p, Prev: %p, Next: %p",
         wg, wg->previous, wg->next);
-    //material_apply(NULL);
+    material_apply(NULL);
     al_draw_rectangle(-wg->half_width, -wg->half_height, wg->half_width, wg->half_height, al_map_rgb_f(0, 1, 0), 1);
 #endif
 }
@@ -1068,13 +1068,43 @@ void widget_engine_event_handler()
 /*               LUA interface               */
 /*********************************************/
 
+// Set the widget keyframe (singular) clears all current keyframes 
+static int set_keyframe(lua_State* L)
+{
+    struct wg_base_internal* const wg = (struct wg_base_internal*) luaL_checkudata(L, -2, "widget_mt");
+
+    struct keyframe keyframe;
+
+    keyframe_default(&keyframe);
+    lua_getkeyframe(-1, &keyframe);
+
+    tweener_set(wg, &keyframe);
+
+    return 0;
+}
+
+// Reads a transform from the stack and appends to the end of its current path
+static int push_keyframe(lua_State* L)
+{
+    struct wg_base_internal* const wg = (struct wg_base_internal*)luaL_checkudata(L, -2, "widget_mt");
+    luaL_checktype(L, -1, LUA_TTABLE);
+
+    struct keyframe keyframe;
+    keyframe_default(&keyframe);
+
+    lua_getkeyframe(-1, &keyframe);
+
+    tweener_push(wg, &keyframe);
+    return 0;
+}
+
 // General widget garbage collection
 static int gc(lua_State* L)
 {
     struct wg_base_internal* const wg = (struct wg_base_internal*)luaL_checkudata(L, 1, "wg_mt");
 
     if (wg->jumptable.base->gc)
-        wg->jumptable.base->gc(wg);
+        wg->jumptable.base->gc(downcast(wg));
 
     call_engine(wg, gc);
     queue_pop(wg);
@@ -1088,7 +1118,32 @@ static int gc(lua_State* L)
 // General widget index method
 static int index(lua_State* L)
 {
+    static const struct {
+        const char* key;
+        const lua_CFunction function;
+        bool call;
+    } lookup[] = {
+        {"set_keyframe",set_keyframe,false},
+        {"push_keyframe",push_keyframe,false},
+        {NULL,NULL,false},
+    };
+
     struct wg_base_internal* const wg = (struct wg_base_internal*)luaL_checkudata(L, -2, "widget_mt");
+
+    if (lua_type(L, -1) == LUA_TSTRING)
+    {
+        const char* key = lua_tostring(L, -1);
+
+        for (size_t i = 0; lookup[i].key; i++)
+            if (strcmp(lookup[i].key, key) == 0)
+            {
+                if (lookup[i].call)
+                    return lookup[i].function(L);
+
+                lua_pushcfunction(L, lookup[i].function);
+                return 1;
+            }
+    }
 
     if (wg->jumptable.base->index)
     {

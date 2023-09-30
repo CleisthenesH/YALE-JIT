@@ -18,9 +18,6 @@ void keyframe_build_transform(const struct keyframe* const keyframe, ALLEGRO_TRA
 		keyframe->sx, keyframe->sy,
 		keyframe->a);
 
-//	if (keyframe->c > 0.0)
-//		camera_compose_transform(trans, keyframe->camera);
-
 	al_translate_transform(trans, keyframe->dx, keyframe->dy);
 }
 
@@ -35,26 +32,18 @@ void keyframe_default(struct keyframe* const keyframe)
 
 void keyframe_copy(struct keyframe* const dest, const struct keyframe* const src)
 {
-	dest->t = src->t;
-	dest->x = src->x;
-	dest->y = src->y;
-	dest->sx = src->sx;
-	dest->sy = src->sy;
-	dest->a = src->a;
-	dest->t = src->t;
-	dest->dx = src->dx;
-	dest->dy = src->dy;
+	memcpy_s(dest, sizeof(struct keyframe), src, sizeof(struct keyframe));
 }
 
 void keyframe_blend(struct keyframe* const dest, const struct keyframe* const a, const struct keyframe* const b, double blend)
 {
-	dest->t = a->t * blend + b->t * (1 - blend);
-	dest->x = a->x * blend + b->x * (1 - blend);
-	dest->y = a->y * blend + b->y * (1 - blend);
+	dest->t  = a->t  * blend + b->t  * (1 - blend);
+	dest->x  = a->x  * blend + b->x  * (1 - blend);
+	dest->y  = a->y  * blend + b->y  * (1 - blend);
 	dest->sx = a->sx * blend + b->sx * (1 - blend);
 	dest->sy = a->sy * blend + b->sy * (1 - blend);
-	dest->a = a->a * blend + b->a * (1 - blend);
-	dest->t = a->t * blend + b->t * (1 - blend);
+	dest->a  = a->a  * blend + b->a  * (1 - blend);
+	dest->t  = a->t  * blend + b->t  * (1 - blend);
 	dest->dx = a->dx * blend + b->dx * (1 - blend);
 	dest->dy = a->dy * blend + b->dy * (1 - blend);
 }
@@ -109,7 +98,7 @@ void lua_setkeyframe(int idx, const struct keyframe* const keyframe)
 	lua_pushnumber(lua_state, keyframe->t);
 	lua_setfield(lua_state, idx - 1, "t");
 	lua_pushnumber(lua_state, keyframe->x);
-	lua_setfield(lua_state, idx - 1,"x");
+	lua_setfield(lua_state, idx - 1, "x");
 	lua_pushnumber(lua_state, keyframe->y);
 	lua_setfield(lua_state, idx - 1, "y");
 	lua_pushnumber(lua_state, keyframe->sx);
