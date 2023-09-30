@@ -914,13 +914,10 @@ void widget_engine_update()
     }
 
     case ENGINE_STATE_TO_DRAG:
-    {
         towards_drag();
 
         break;
     }
-    }
-  
 }
 
 // Make a work queue with only the widgets that have an update method.
@@ -1071,15 +1068,66 @@ void widget_engine_event_handler()
 /*               LUA interface               */
 /*********************************************/
 
-// Geneal widget index method
+// General widget garbage collection
+static int gc(lua_State* L)
+{
+    struct wg_base_internal* const wg = (struct wg_base_internal*)luaL_checkudata(L, 1, "wg_mt");
+
+    if (wg->jumptable.base->gc)
+        wg->jumptable.base->gc(wg);
+
+    call_engine(wg, gc);
+    queue_pop(wg);
+
+    // Make sure we don't get stale pointers
+    prevent_stale_pointers(wg);
+
+    return 0;
+}
+
+// General widget index method
 static int index(lua_State* L)
 {
-    // Just checking how fenv works for now.
-    printf("index hit\n");
-    struct widget* const widget = (struct widget*)luaL_checkudata(L, -2, "widget_mt");
+    struct wg_base_internal* const wg = (struct wg_base_internal*)luaL_checkudata(L, -2, "widget_mt");
 
-    lua_getfenv(lua_state, -2);
+    if (wg->jumptable.base->index)
+    {
+        const int output = wg->jumptable.base->index(L);
+
+        if (output >= 0)
+            return output;
+    }
+
+    lua_getfenv(L, -2);
+    lua_replace(L, -3);
+
+    lua_gettable(L, -2);
+
+    if (lua_isnil(L, -1))
+        return 0;
+
     return 1;
+}
+
+// General widget newindex method
+static int newindex(lua_State* L)
+{
+    struct wg_base_internal* const wg = (struct wg_base_internal*)luaL_checkudata(L, -3, "widget_mt");
+
+    if (wg->jumptable.base->newindex)
+    {
+        const int output = wg->jumptable.base->newindex(L);
+
+        if (output >= 0)
+            return output;
+    }
+
+    lua_getfenv(L, -3);
+    lua_replace(L, -4);
+
+    lua_settable(L, -3);
+
+    return 0;
 }
 
 /*********************************************/
@@ -1158,6 +1206,12 @@ void widget_engine_init()
     lua_pushcfunction(lua_state, index);
     lua_setfield(lua_state, -2, "__index");
 
+    lua_pushcfunction(lua_state, newindex);
+    lua_setfield(lua_state, -2, "__newindex");
+
+    lua_pushcfunction(lua_state, gc);
+    lua_setfield(lua_state, -2, "__gc");
+
     lua_pop(lua_state, 1);
 }
 
@@ -1173,9 +1227,6 @@ struct wg_base* wg_alloc(enum wg_type type, size_t size, struct wg_jumptable_bas
         .type = type,
         .next = NULL,
         .previous = queue_tail,
-        .draggable = true,
-        .snappable = true,
-        .jumptable.base = jumptable
     };
 
     keyframe_default((struct keyframe* const)get_keyframe(widget));

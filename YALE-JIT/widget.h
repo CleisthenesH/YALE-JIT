@@ -61,8 +61,8 @@ struct wg_jumptable_base
 	void (*drop_end)(struct wg_base* const, struct wg_base* const);
 
 	void (*gc)(struct wg_base* const);
-	int (*index)();
-	int (*newindex)();
+	int (*index)(struct lua_State* L);
+	int (*newindex)(struct lua_State* L);
 };
 
 struct wg_jumptable_zone

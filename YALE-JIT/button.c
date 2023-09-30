@@ -79,7 +79,7 @@ int button_new(lua_State* L)
 		lua_pop(L, 1);
 	}
 
-	const size_t size = sizeof(struct button) + sizeof(char) * text_len;
+	const size_t size = sizeof(struct button) + sizeof(char) * (text_len+1);
 
 	struct button* button = (struct button*) wg_alloc(WG_BASE, size, &button_jumptable);
 
