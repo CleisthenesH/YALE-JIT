@@ -107,7 +107,8 @@ static inline struct keyframe* get_keyframe(struct wg_base_internal* wg)
 /*             Widget Callbacks              */
 /*********************************************/
 
-// Callback macros assumes widget's type is (struct wg_base_internal*)
+// Callback macros assumes widget's type is (struct wg_base_internal*).
+// Will also trigger a too many parameters error, but never actually called the function.
 
 #define call_engine(widget,method) \
     do{ \
@@ -122,36 +123,62 @@ static inline struct keyframe* get_keyframe(struct wg_base_internal* wg)
                 (widget)->jumptable.piece-> ## method(downcast(widget)); \
     }while(0);
 
-static void call_lua(struct wg_base_internal* const wg, const char* key)
+#define call_engine_2(widget,method,object) \
+    do{ \
+        if((widget)->type == WG_BASE) \
+            if ((widget)->jumptable.base-> ## method) \
+                (widget)->jumptable.base-> ## method(downcast(widget),downcast(object)); \
+        if((widget)->type == WG_ZONE) \
+            if ((widget)->jumptable.zone-> ## method) \
+                (widget)->jumptable.zone-> ## method(downcast(widget),downcast(object)); \
+        if((widget)->type == WG_PIECE) \
+            if ((widget)->jumptable.piece-> ## method) \
+                (widget)->jumptable.piece-> ## method(downcast(widget),downcast(object)); \
+    }while(0);
+
+static void call_lua(struct wg_base_internal* const wg, const char* key, struct wg_base_internal* const obj)
 {
     lua_getglobal(lua_state, "widgets");
     lua_pushlightuserdata(lua_state, wg);
     lua_gettable(lua_state, -2);
-
-    lua_remove(lua_state, -2);
 
     lua_getfenv(lua_state, -1);
     lua_getfield(lua_state, -1, key);
 
     if (lua_isnil(lua_state, -1))
     {
-        lua_pop(lua_state, 3);
+        lua_pop(lua_state, 4);
         return;
     }
 
-    lua_remove(lua_state, -2);
-    lua_pushvalue(lua_state, -2);
+    lua_pushvalue(lua_state, -3);
 
-    lua_pcall(lua_state, 1, 0, 0);
+    if (obj)
+    {
+        lua_pushlightuserdata(lua_state, obj);
+        lua_gettable(lua_state, -5);
 
-    lua_remove(lua_state, -1);
+        lua_pcall(lua_state, 2, 0, 0);
+    }
+    else
+    {
+        lua_pcall(lua_state, 1, 0, 0);
+    }
+
+    lua_pop(lua_state, 3);
 }
 
 #define call(widget,method) \
     do{ \
-        call_lua(widget, #method); \
-        call_engine(widget,method)\
-    }while(0);
+        call_lua(widget, #method, NULL);\
+        call_engine(widget,method);\
+    }while(0); 
+
+#define call_2(widget,method,obj) \
+    do{ \
+        call_lua(widget, #method, obj);\
+        call_engine_2(widget, method, obj);\
+     }while(0); 
 
 /*********************************************/
 /*              Widget Tweener               */
@@ -712,7 +739,6 @@ static inline void update_drag_pointers()
         return;
     }
 
-    /*
     if (current_drop != new_pointer && (
         widget_engine_state == ENGINE_STATE_DRAG ||
         widget_engine_state == ENGINE_STATE_SNAP ||
@@ -721,41 +747,33 @@ static inline void update_drag_pointers()
     {
         if (current_drop)
         {
-            if (current_drop->jump_table->drop_end)
-            {
-                call_va(current_drop, drop_end, (struct widget_interface*)current_hover);
-            }
-            call_lua(current_drop, drop_end)
+            call_2(current_drop, drop_end, current_hover);
         }
 
         if (new_pointer)
         {
-            if (new_pointer->jump_table->drop_start)
-            {
-                call_va(new_pointer, drop_start, (struct widget_interface*)current_hover);
-            }
-            call_lua(new_pointer, drop_start)
+            call_2(new_pointer, drop_start, current_hover);
 
-                if (new_pointer->is_snappable)
-                {
-                    render_interface_interupt(current_hover->render_interface);
+			if (new_pointer->snappable)
+			{
+                tweener_interupt(current_hover);
 
-                    struct keyframe snap_target;
-                    render_interface_copy_destination(new_pointer->render_interface, &snap_target);
+				struct keyframe snap_target;
+                tweener_destination(new_pointer, &snap_target);
 
-                    snap_target.dx += snap_offset_x;
-                    snap_target.dy += snap_offset_y;
-                    snap_target.timestamp = current_timestamp + 0.1;
+				snap_target.dx += snap_offset_x;
+				snap_target.dy += snap_offset_y;
+				snap_target.t = current_timestamp + 0.1;
 
-                    render_interface_push_keyframe(current_hover->render_interface, &snap_target);
+                tweener_push(current_hover, &snap_target);
 
-                    widget_engine_state = ENGINE_STATE_TO_SNAP;
-                }
-                else
-                {
-                    towards_drag();
-                    widget_engine_state = ENGINE_STATE_TO_DRAG;
-                }
+				widget_engine_state = ENGINE_STATE_TO_SNAP;
+			}
+			else
+			{
+				towards_drag();
+				widget_engine_state = ENGINE_STATE_TO_DRAG;
+			}
         }
         else
         {
@@ -772,7 +790,6 @@ static inline void update_drag_pointers()
 
         return;
     }
-    */
 }
 
 // Convert a screen position to the cordinate used when drawng
@@ -1019,19 +1036,13 @@ void widget_engine_event_handler()
             drag_release.t = current_timestamp + 0.1;
 
             tweener_push(current_hover, &drag_release);
-            /*
             if (current_drop)
             {
-                if (current_drop->jump_table->drag_end_drop)
-                    call_va(current_drop, drag_end_drop, (struct widget_interface*)current_hover);
-                else
-                    call(current_hover, drag_end_no_drop);
-
-                call_lua(current_drop, drag_end_drop)
+                call_2(current_drop, drag_end_drop, current_hover);
+                call(current_hover, drag_end_no_drop);
             }
             else
                 call(current_hover, drag_end_no_drop);
-                */
 
             current_drop = NULL;
             break;
@@ -1163,11 +1174,38 @@ struct wg_base* wg_alloc(enum wg_type type, size_t size, struct wg_jumptable_bas
         .next = NULL,
         .previous = queue_tail,
         .draggable = true,
-        .snappable = false,
+        .snappable = true,
         .jumptable.base = jumptable
     };
 
     keyframe_default((struct keyframe* const)get_keyframe(widget));
+
+    switch (type)
+    {
+    case WG_BASE:
+        widget->draggable = false;
+        widget->snappable = false;
+        widget->jumptable.base = jumptable;
+        widget->c = 0;
+
+        break;
+
+    case WG_ZONE:
+        widget->draggable = false;
+        widget->snappable = true;
+        widget->jumptable.zone = (struct wg_jumptable_zone*) jumptable;
+        widget->c = 1;
+
+        break;
+
+    case WG_PIECE:
+        widget->draggable = true;
+        widget->snappable = true;
+        widget->jumptable.piece = (struct wg_jumptable_piece*) jumptable;
+        widget->c = 1;
+
+        break;
+    }
 
     // Set metatable
     luaL_getmetatable(lua_state, "widget_mt");
