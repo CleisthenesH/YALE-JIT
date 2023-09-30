@@ -1,0 +1,97 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <None Include="packages.config" />
+    <None Include="shaders\offscreen.frag">
+      <Filter>core\widget\shaders</Filter>
+    </None>
+    <None Include="shaders\offscreen.vert">
+      <Filter>core\widget\shaders</Filter>
+    </None>
+    <None Include="shaders\onscreen.frag">
+      <Filter>core\widget\shaders</Filter>
+    </None>
+    <None Include="shaders\onscreen.vert">
+      <Filter>core\widget\shaders</Filter>
+    </None>
+    <None Include="lua\boot.lua">
+      <Filter>scripts</Filter>
+    </None>
+    <None Include="lua\config.lua">
+      <Filter>scripts</Filter>
+    </None>
+    <None Include="..\README.md" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="thread_pool.c">
+      <Filter>core\thread_pool</Filter>
+    </ClCompile>
+    <ClCompile Include="keyframe.c">
+      <Filter>core\widget\components</Filter>
+    </ClCompile>
+    <ClCompile Include="widget.c">
+      <Filter>core\widget</Filter>
+    </ClCompile>
+    <ClCompile Include="main.c">
+      <Filter>core</Filter>
+    </ClCompile>
+    <ClCompile Include="lua_lib.c">
+      <Filter>core</Filter>
+    </ClCompile>
+    <ClCompile Include="resource_manager.c">
+      <Filter>core\resource_manager</Filter>
+    </ClCompile>
+    <ClCompile Include="material.c">
+      <Filter>core\widget\components</Filter>
+    </ClCompile>
+    <ClCompile Include="button.c">
+      <Filter>widgets</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="thread_pool.h">
+      <Filter>core\thread_pool</Filter>
+    </ClInclude>
+    <ClInclude Include="keyframe.h">
+      <Filter>core\widget\components</Filter>
+    </ClInclude>
+    <ClInclude Include="widget.h">
+      <Filter>core\widget</Filter>
+    </ClInclude>
+    <ClInclude Include="resource_manager.h">
+      <Filter>core\resource_manager</Filter>
+    </ClInclude>
+    <ClInclude Include="material.h">
+      <Filter>core\widget\components</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="core">
+      <UniqueIdentifier>{727be59b-a4be-4ff0-b47d-74065893f8db}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="core\thread_pool">
+      <UniqueIdentifier>{887caa0b-d8b9-4151-bce1-59941dfe04a0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="core\widget">
+      <UniqueIdentifier>{87da6b87-9396-4618-ab0d-42de6ecb3766}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="core\resource_manager">
+      <UniqueIdentifier>{35c00f64-f044-41df-b993-298af4ea933f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="core\widget\components">
+      <UniqueIdentifier>{1d27cd65-7081-42cb-9685-92517034aca7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="core\widget\shaders">
+      <UniqueIdentifier>{d97109b9-3f4b-4d77-bafb-ce0f2572e0cc}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="widgets">
+      <UniqueIdentifier>{c38c656d-d42d-4921-9503-b1b5f0d37a7c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="scripts">
+      <UniqueIdentifier>{afedeb6d-e9b0-4def-97ce-9c4844565bcf}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="..\LICENSE.txt" />
+  </ItemGroup>
+</Project>
