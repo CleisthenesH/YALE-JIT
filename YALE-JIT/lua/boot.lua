@@ -17,4 +17,6 @@ function test_button1:left_click()
 	self:push_keyframe{y=400, x=900, t = 1}
 end
 
+text_entry = text_entry{y = 900, x = 500}
+
 print("Boot Complete")

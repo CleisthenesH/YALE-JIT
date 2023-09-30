@@ -1204,7 +1204,7 @@ static void style_init()
         .edge_radius = 10,
         .edge_width = 2,
 
-        .activated = al_map_rgb(0,0,0),
+        .activated = al_map_rgb(255,255,255),
         .deactivated = al_map_rgb(128,128,128)
     };
 

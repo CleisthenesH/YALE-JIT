@@ -11,6 +11,7 @@ extern double current_timestamp;
 extern double delta_timestamp;
 
 extern int button_new(lua_State*);
+extern int text_entry_new(lua_State*);
 
 // Simple stack dump for debugging
 void stack_dump(lua_State* L)
@@ -58,4 +59,7 @@ void lua_openL_misc(lua_State* L)
 
 	lua_pushcfunction(L, button_new);
 	lua_setglobal(L, "button");
+
+	lua_pushcfunction(L, text_entry_new);
+	lua_setglobal(L, "text_entry");
 }

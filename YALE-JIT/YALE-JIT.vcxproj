@@ -199,6 +199,7 @@
     <ClCompile Include="lua_lib.c" />
     <ClCompile Include="material.c" />
     <ClCompile Include="resource_manager.c" />
+    <ClCompile Include="text_entry.c" />
     <ClCompile Include="thread_pool.c" />
     <ClCompile Include="widget.c" />
   </ItemGroup>

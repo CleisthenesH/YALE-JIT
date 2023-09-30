@@ -47,6 +47,9 @@
     <ClCompile Include="button.c">
       <Filter>widgets</Filter>
     </ClCompile>
+    <ClCompile Include="text_entry.c">
+      <Filter>widgets</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="thread_pool.h">
