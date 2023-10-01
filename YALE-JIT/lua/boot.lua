@@ -4,30 +4,58 @@
 
 -- Runs once after all inializations have ran but before the main loop.
 
-function funct(wg)
-	print("test_button",wg.id,wg)
+function moves(piece,zone)
+	print(piece,zone)
+
+	local output = {}
+
+	if zone == nil then
+		for k,v in pairs(widgets) do
+			if v.q ~= nil and v.r ~= nil then
+				output[#output+1] = v
+			end
+		end
+
+		return output
+	end
+
+	local q = zone.q
+	local r = zone.r
+	
+	for k,v in pairs(widgets) do
+		if v.q ~= nil and v.r ~= nil then
+			local dq = v.q - q
+			local dr = v.r - r
+			if math.abs(dr+dq) <= 1 and math.abs(dr) <= 1 and math.abs(dq) <= 1 then
+				output[#output+1] = v
+			end
+		end
+	end
+
+	return output
 end
 
-test_button1 = button{y=400, x=500, id = 1, text = "Button 1", c=1}
-test_button2 = button{y=600, x=500, id = 2, left_click = funct}
-
-tile1 = tile{y=200, x=100,  team="red", tile="camp"}
-tile2 = tile{y=200, x=200, team="red", tile="hills"}
-tile3 = tile{y=200, x=300, team="red", tile="town"}
-
-meeple = meeple{x=100,y=100}
-
-function test_button1:left_click()
-	print("test_button",self.id,self)
-	self:set_keyframe{y=400, x=500}
-	self:push_keyframe{y=400, x=900, t = 1}
+local function axial_to_world(q,r)
+	local size = 50
+	
+	return 1.1*size*math.sqrt(3)*(q+0.5*r),1.1*size*1.5*r
 end
 
-text_entry1 = text_entry{y = 900, x = 500}
+for q = -3,3 do
+	for r = -3,3 do	
+		if math.abs(q+r) < 4 then
+			local dx, dy = axial_to_world(q,r)
+			tile{q=q,r=r,
+				x=800+dx,y=600+dy,
+				team =  q < 0 
+				and "red" 
+				or "blue",
+				tile = "hills"}
+		end
+	end
+end
+
+meeple{x=100,y=100}
 
 print("Boot Complete")
 
-function moves(piece,zone)
-	print(piece,zone)
-	return {tile1,tile3}
-end

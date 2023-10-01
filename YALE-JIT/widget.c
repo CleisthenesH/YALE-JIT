@@ -389,10 +389,9 @@ static void call_moves(struct wg_piece_internal* wg)
     lua_pushlightuserdata(lua_state, wg);
     lua_gettable(lua_state, -3);
 
-    // TODO: is this brach nessecary?
     if (wg->zone)
     {
-        lua_pushlightuserdata(lua_state, wg->zone);
+        lua_pushlightuserdata(lua_state, get_internal((struct wg_base*) wg->zone));
         lua_gettable(lua_state, -4);
     }
     else
@@ -441,7 +440,8 @@ static void call_moves(struct wg_piece_internal* wg)
 
         lua_pop(lua_state, 1);
     }
-}
+    lua_pop(lua_state, 2);
+  }
 
 // Removes a piece from the zone, not from the board
 static void remove_piece(struct wg_zone_internal* const zone, struct wg_piece_internal* const piece)
@@ -500,16 +500,8 @@ static void moves_callback(struct wg_zone_internal* const zone, struct wg_piece_
     lua_pushlightuserdata(lua_state, piece);
     lua_gettable(lua_state, -3);
 
-    // TODO: is this brach nessecary?
-    if (zone)
-    {
-        lua_pushlightuserdata(lua_state, zone);
-        lua_gettable(lua_state, -4);
-    }
-    else
-    {
-        lua_pushnil(lua_state);
-    }
+    lua_pushlightuserdata(lua_state, zone);
+    lua_gettable(lua_state, -4);
 
     lua_call(lua_state, 2, 0);
     lua_pop(lua_state, 1);
@@ -695,7 +687,9 @@ static void call_drag_end_drop(struct wg_base_internal* const wg, const char* ke
 
         move_piece(zone, piece);
         moves_callback(zone, piece, true);
+        idle_zones();
         call_moves(piece);
+        
         zone->nominated = false;
     }
 
@@ -720,7 +714,9 @@ static void call_drag_end_drop(struct wg_base_internal* const wg, const char* ke
 
         move_piece(zone, piece);
         moves_callback(zone, piece, true);
+        idle_zones();
         call_moves(piece);
+
         zone->nominated = false;
     }
 }
@@ -1612,8 +1608,11 @@ void widget_engine_init()
     lua_pushvalue(lua_state, -1);
     lua_setfield(lua_state, -2, "__index");
 
-    lua_pushstring(lua_state, "vk");
-    lua_setfield(lua_state, -2, "__mode");
+    if (0)
+    {
+        lua_pushstring(lua_state, "vk");
+        lua_setfield(lua_state, -2, "__mode");
+    }
 
     lua_setmetatable(lua_state, -2);
     lua_setglobal(lua_state, "widgets");
