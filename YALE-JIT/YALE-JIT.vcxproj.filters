@@ -50,6 +50,12 @@
     <ClCompile Include="text_entry.c">
       <Filter>widgets</Filter>
     </ClCompile>
+    <ClCompile Include="tile.c">
+      <Filter>widgets</Filter>
+    </ClCompile>
+    <ClCompile Include="meeple.c">
+      <Filter>widgets</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="thread_pool.h">
@@ -66,6 +72,9 @@
     </ClInclude>
     <ClInclude Include="material.h">
       <Filter>core\widget\components</Filter>
+    </ClInclude>
+    <ClInclude Include="meeple_tile_utility.h">
+      <Filter>widgets</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

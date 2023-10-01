@@ -11,7 +11,9 @@ enum wg_type
 {
 	WG_BASE,
 	WG_ZONE,
-	WG_PIECE
+	WG_PIECE,
+
+	WG_TYPE_CNT
 };
 
 struct wg_base
@@ -30,6 +32,10 @@ struct wg_zone
 	bool valid_move;
 	bool highlighted;
 	bool nominated;
+
+	size_t allocated;
+	size_t used;
+	struct wg_piece** pieces;
 };
 
 struct wg_piece
@@ -69,8 +75,8 @@ struct wg_jumptable_zone
 {
 	struct wg_jumptable_base;
 
-	void (*highligh_start)(struct wg_zone* const);
-	void (*highligh_end)(struct wg_zone* const);
+	void (*highlight_start)(struct wg_zone* const);
+	void (*highlight_end)(struct wg_zone* const);
 
 	void (*remove_piece)(struct wg_zone* const, struct wg_piece* const);
 	void (*append_piece)(struct wg_zone* const, struct wg_piece* const);

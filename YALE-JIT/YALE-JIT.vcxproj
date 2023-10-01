@@ -198,14 +198,17 @@
     <ClCompile Include="main.c" />
     <ClCompile Include="lua_lib.c" />
     <ClCompile Include="material.c" />
+    <ClCompile Include="meeple.c" />
     <ClCompile Include="resource_manager.c" />
     <ClCompile Include="text_entry.c" />
     <ClCompile Include="thread_pool.c" />
+    <ClCompile Include="tile.c" />
     <ClCompile Include="widget.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="keyframe.h" />
     <ClInclude Include="material.h" />
+    <ClInclude Include="meeple_tile_utility.h" />
     <ClInclude Include="resource_manager.h" />
     <ClInclude Include="thread_pool.h" />
     <ClInclude Include="widget.h" />
