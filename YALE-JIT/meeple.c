@@ -45,6 +45,8 @@ static void mask(const struct wg_base* const wg)
 
 static struct wg_jumptable_piece meeple_table =
 {
+	.type = "meeple",
+
 	.draw = draw,
 	.mask = mask,
 };

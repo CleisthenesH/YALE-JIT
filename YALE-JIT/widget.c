@@ -1447,6 +1447,40 @@ static int push_keyframe(lua_State* L)
     return 0;
 }
 
+// Pushes the 'type' field of jumptable onto the stack.
+static int push_type(lua_State* L)
+{
+    struct wg_base_internal* const wg = (struct wg_base_internal*)luaL_checkudata(L, -2, "widget_mt");
+
+    if (wg->type == WG_BASE)
+        lua_pushstring(L, wg->jumptable.base->type);
+    else if (wg->type == WG_ZONE)
+        lua_pushstring(L, wg->jumptable.zone->type);
+    else if (wg->type == WG_PIECE)
+        lua_pushstring(L, wg->jumptable.piece->type);
+    else
+        lua_pushnil(L);
+
+    return 1;
+}
+
+// Pushes the 'type' field of widget onto the stack.
+static int push_widget_type(lua_State* L)
+{
+    struct wg_base_internal* const wg = (struct wg_base_internal*)luaL_checkudata(L, -2, "widget_mt");
+
+    if (wg->type == WG_BASE)
+        lua_pushstring(L, "base");
+    else if (wg->type == WG_ZONE)
+        lua_pushstring(L, "zone");
+    else if (wg->type == WG_PIECE)
+        lua_pushstring(L, "piece");
+    else
+        lua_pushnil(L);
+
+    return 1;
+}
+
 // General widget garbage collection
 static int gc(lua_State* L)
 {
@@ -1479,6 +1513,8 @@ static int index(lua_State* L)
     } lookup[] = {
         {"set_keyframe",set_keyframe,false},
         {"push_keyframe",push_keyframe,false},
+        {"type",push_type,true},
+        {"widget_type",push_widget_type,true},
         {NULL,NULL,false},
     };
 

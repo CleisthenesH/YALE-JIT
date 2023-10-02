@@ -181,6 +181,8 @@ int newindex(lua_State* L)
 
 static struct wg_jumptable_zone tile_table =
 {
+	.type = "tile",
+
 	.draw = draw,
 	.mask = mask,
 

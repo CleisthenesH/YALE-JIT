@@ -47,6 +47,8 @@ struct wg_piece
 
 struct wg_jumptable_base
 {
+	const char* type;
+
 	void (*draw)(const struct wg_base* const);
 	void (*update)(struct wg_base* const);
 	void (*event_handler)(struct wg_base* const);

@@ -5,13 +5,11 @@
 -- Runs once after all inializations have ran but before the main loop.
 
 function moves(piece,zone)
-	print(piece,zone)
-
 	local output = {}
 
 	if zone == nil then
 		for k,v in pairs(widgets) do
-			if v.q ~= nil and v.r ~= nil then
+			if v.type == "tile" then
 				output[#output+1] = v
 			end
 		end
@@ -23,7 +21,7 @@ function moves(piece,zone)
 	local r = zone.r
 	
 	for k,v in pairs(widgets) do
-		if v.q ~= nil and v.r ~= nil then
+		if v.type == "tile" then
 			local dq = v.q - q
 			local dr = v.r - r
 			if math.abs(dr+dq) <= 1 and math.abs(dr) <= 1 and math.abs(dq) <= 1 then
@@ -55,7 +53,8 @@ for q = -3,3 do
 	end
 end
 
-meeple{x=100,y=100}
+meeple{x=100, y=100}
+meeple{x=100, y=100}
 
 print("Boot Complete")
 

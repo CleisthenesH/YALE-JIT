@@ -57,8 +57,11 @@ static void hover_end(struct wg_base* const wg)
 
 const struct wg_jumptable_base button_jumptable =
 {
+	.type = "button",
+		
 	.draw = draw,
 	.mask = mask,
+
 	.hover_start = hover_start,
 	.hover_end = hover_end,
 };

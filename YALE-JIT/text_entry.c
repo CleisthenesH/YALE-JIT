@@ -221,6 +221,8 @@ static void event_handler(struct wg_base* const wg)
 
 const struct wg_jumptable_base text_entry_jumptable =
 {
+	.type = "text_entry",
+
 	.draw = draw,
 	.mask = mask,
 	.event_handler = event_handler,
