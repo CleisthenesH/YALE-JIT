@@ -252,7 +252,7 @@ int text_entry_new(lua_State* L)
 
 	const size_t size = sizeof(struct text_entry) + sizeof(char) * (text_len + 1);
 
-	struct text_entry* text_entry = (struct text_entry*)wg_alloc(WG_BASE, size, &text_entry_jumptable);
+	struct text_entry* text_entry = (struct text_entry*)wg_alloc_base(size, &text_entry_jumptable);
 
 	strcpy_s(text_entry->place_holder, text_len + 1, text ? text : "Click to enter text.");
 

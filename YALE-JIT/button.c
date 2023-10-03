@@ -84,7 +84,7 @@ int button_new(lua_State* L)
 
 	const size_t size = sizeof(struct button) + sizeof(char) * (text_len+1);
 
-	struct button* button = (struct button*) wg_alloc(WG_BASE, size, &button_jumptable);
+	struct button* button = (struct button*) wg_alloc_base( size, &button_jumptable);
 
 	strcpy_s(button->text, text_len + 1, text ? text : "Placeholder");
 

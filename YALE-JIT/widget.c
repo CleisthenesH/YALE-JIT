@@ -1668,7 +1668,7 @@ void widget_engine_init()
     lua_pop(lua_state, 1);
 }
 
-struct wg_base* wg_alloc(enum wg_type type, size_t size, struct wg_jumptable_base* jumptable)
+static struct wg_base_internal* wg_alloc(enum wg_type type, size_t size)
 {
     struct wg_base_internal* const widget = lua_newuserdata(lua_state, size + sizeof(struct wg_header));
 
@@ -1687,39 +1687,12 @@ struct wg_base* wg_alloc(enum wg_type type, size_t size, struct wg_jumptable_bas
     switch (type)
     {
     case WG_BASE:
-        widget->draggable = false;
-        widget->snappable = false;
-        widget->jumptable.base = jumptable;
         widget->c = 0;
-
-        break;
-
-    case WG_ZONE:
-        widget->draggable = false;
-        widget->snappable = false;
-        widget->jumptable.zone = (struct wg_jumptable_zone*) jumptable;
-        widget->c = 1;
-
-        {
-            struct wg_zone_internal* const zone = (struct wg_zone_internal* const) widget;
-            zone->valid_move = false;
-            zone->highlighted = false;
-            zone->nominated = false;
-        }
-
         break;
 
     case WG_PIECE:
-        widget->draggable = true;
-        widget->snappable = true;
-        widget->jumptable.piece = (struct wg_jumptable_piece*) jumptable;
+    case WG_ZONE:
         widget->c = 1;
-
-        {
-            struct wg_piece_internal* const piece = (struct wg_piece_internal* const) widget;
-            piece->zone = NULL;
-        }
-
         break;
     }
 
@@ -1782,5 +1755,44 @@ struct wg_base* wg_alloc(enum wg_type type, size_t size, struct wg_jumptable_bas
 
     tweener_init(widget);
 
-    return downcast(widget);
+    return widget;
+}
+
+struct wg_base* wg_alloc_base(size_t size, struct wg_jumptable_base* jumptable)
+{
+    struct wg_base_internal* wg = (struct wg_base_internal*)wg_alloc(WG_BASE, size);
+
+    wg->draggable = false;
+    wg->snappable = false;
+    wg->jumptable.base = (struct wg_jumptable_base*)jumptable;
+
+    return downcast(wg);
+}
+
+struct wg_zone* wg_alloc_zone(size_t size, struct wg_jumptable_zone* jumptable)
+{
+    struct wg_zone_internal* wg = (struct wg_zone_internal*) wg_alloc(WG_ZONE, size);
+
+    wg->draggable = false;
+    wg->snappable = false;
+    wg->jumptable.zone = (struct wg_jumptable_zone*)jumptable;
+
+    wg->valid_move = false;
+    wg->highlighted = false;
+    wg->nominated = false;
+
+    return (struct wg_zone*)downcast((struct wg_base_internal*) wg);
+}
+
+struct wg_piece* wg_alloc_piece(size_t size, struct wg_jumptable_piece* jumptable)
+{
+    struct wg_piece_internal* wg = (struct wg_piece_internal*)wg_alloc(WG_PIECE, size);
+
+    wg->draggable = true;
+    wg->snappable = true;
+    wg->jumptable.piece = (struct wg_jumptable_piece*)jumptable;
+
+    wg->zone = NULL;
+
+    return (struct wg_piece*)downcast((struct wg_base_internal*)wg);
 }

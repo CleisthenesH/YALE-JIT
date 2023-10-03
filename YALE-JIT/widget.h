@@ -89,7 +89,9 @@ struct wg_jumptable_piece
 	struct wg_jumptable_base;
 };
 
-struct wg_base* wg_alloc(enum wg_type, size_t, struct wg_jumptable_base*);
+struct wg_base* wg_alloc_base(size_t, struct wg_jumptable_base*);
+struct wg_zone* wg_alloc_zone(size_t, struct wg_jumptable_zone*);
+struct wg_piece* wg_alloc_piece(size_t, struct wg_jumptable_piece*);
 
 // TODO: remove
 void stack_dump(struct lua_State*);

@@ -53,7 +53,7 @@ static struct wg_jumptable_piece meeple_table =
 
 int meeple_new(lua_State* L)
 {
-	struct meeple* meeple = (struct meeple*)wg_alloc(WG_PIECE, sizeof(struct meeple), &meeple_table);
+	struct meeple* meeple = (struct meeple*)wg_alloc_piece( sizeof(struct meeple), &meeple_table);
 
 	if (!meeple)
 		return 0;

@@ -16,6 +16,6 @@ void keyframe_build_transform(const struct keyframe* const, ALLEGRO_TRANSFORM* c
 void keyframe_copy(struct keyframe* const, const struct keyframe* const);
 void keyframe_blend(struct keyframe* const, const struct keyframe* const, const struct keyframe* const,double);
 
-void lua_getkeyframe(int, const struct keyframe* const);
-void lua_setkeyframe(int, struct keyframe* const);
+void lua_getkeyframe(int, struct keyframe* const);
+void lua_setkeyframe(int, const struct keyframe* const);
 void lua_cleankeyframe(int);
