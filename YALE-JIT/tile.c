@@ -125,7 +125,7 @@ static void lua_toid(lua_State* L, int idx, struct tile* tile)
 	lua_pop(L, 1);
 }
 
-int index(lua_State* L)
+static int index(lua_State* L)
 {
 	struct tile* const tile = (struct tile* const) luaL_checkudata(L, -2, "widget_mt");
 
@@ -154,7 +154,7 @@ int index(lua_State* L)
 	return -1;
 }
 
-int newindex(lua_State* L)
+static int newindex(lua_State* L)
 {
 	struct tile* const tile = (struct tile* const)luaL_checkudata(L, -3, "widget_mt");
 

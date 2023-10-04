@@ -53,8 +53,8 @@ for q = -3,3 do
 	end
 end
 
-meeple{x=100, y=100}
-meeple{x=200, y=100}
+meeple{x=100, y=100, team = "red"}
+meeple{x=200, y=100, team = "blue"}
 
 print("Boot Complete")
 
