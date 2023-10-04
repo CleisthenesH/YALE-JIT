@@ -47,7 +47,7 @@ extern ALLEGRO_FONT* debug_font;
 
 struct wg_header
 {
-	enum wg_type type;
+	enum wg_class class;
 
 	union {
 		struct wg_jumptable_base* base;
@@ -107,8 +107,8 @@ static inline struct keyframe* get_keyframe(struct wg_base_internal* wg)
 /*          Widget Queue Methods             */
 /*********************************************/
 
-static struct wg_base_internal* queue_head[WG_TYPE_CNT];
-static struct wg_base_internal* queue_tail[WG_TYPE_CNT];
+static struct wg_base_internal* queue_head[WG_CLASS_CNT];
+static struct wg_base_internal* queue_tail[WG_CLASS_CNT];
 
 // Pop a widget out of the engine
 static void queue_pop(struct wg_base_internal* const widget)
@@ -116,12 +116,12 @@ static void queue_pop(struct wg_base_internal* const widget)
     if (widget->next)
         widget->next->previous = widget->previous;
     else
-        queue_tail[widget->type] = widget->previous;
+        queue_tail[widget->class] = widget->previous;
 
     if (widget->previous)
         widget->previous->next = widget->next;
     else
-        queue_head[widget->type] = widget->next;
+        queue_head[widget->class] = widget->next;
 }
 
 // Insert the first widget behind the second
@@ -140,20 +140,20 @@ static void queue_insert(struct wg_base_internal* mover, struct wg_base_internal
         if (target->previous)
             target->previous->next = mover;
         else
-            queue_head[target->type] = mover;
+            queue_head[target->class] = mover;
 
         target->previous = mover;
     }
     else
     {
-        mover->previous = queue_tail[mover->type];
+        mover->previous = queue_tail[mover->class];
 
-        if (queue_tail[mover->type])
-            queue_tail[mover->type]->next = mover;
+        if (queue_tail[mover->class])
+            queue_tail[mover->class]->next = mover;
         else
-            queue_head[mover->type] = mover;
+            queue_head[mover->class] = mover;
 
-        queue_tail[mover->type] = mover;
+        queue_tail[mover->class] = mover;
     }
 }
 
@@ -419,7 +419,7 @@ static void call_moves(struct wg_piece_internal* wg)
 
         struct wg_zone_internal* zone = (struct wg_zone_internal*)luaL_checkudata(lua_state, -1, "widget_mt");
 
-        if (zone->type != WG_ZONE)
+        if (zone->class != WG_ZONE)
         {
             lua_pop(lua_state, 1);
             continue;
@@ -551,7 +551,7 @@ static int manual_move(lua_State* L)
     if (!piece || !zone)
         return 0;
 
-    if (piece->type != WG_PIECE || zone->type != WG_ZONE)
+    if (piece->class != WG_PIECE || zone->class != WG_ZONE)
         return 0;
 
     move_piece(zone, piece);
@@ -570,26 +570,26 @@ static int manual_move(lua_State* L)
 
 #define call_engine(widget,method) \
     do{ \
-        if((widget)->type == WG_BASE) \
+        if((widget)->class == WG_BASE) \
             if ((widget)->jumptable.base-> ## method) \
                 (widget)->jumptable.base-> ## method(downcast(widget)); \
-        if((widget)->type == WG_ZONE) \
+        if((widget)->class == WG_ZONE) \
             if ((widget)->jumptable.zone-> ## method) \
                 (widget)->jumptable.zone-> ## method(downcast(widget)); \
-        if((widget)->type == WG_PIECE) \
+        if((widget)->class == WG_PIECE) \
             if ((widget)->jumptable.piece-> ## method) \
                 (widget)->jumptable.piece-> ## method(downcast(widget)); \
     }while(0);
 
 #define call_engine_2(widget,method,object) \
     do{ \
-        if((widget)->type == WG_BASE) \
+        if((widget)->class == WG_BASE) \
             if ((widget)->jumptable.base-> ## method) \
                 (widget)->jumptable.base-> ## method(downcast(widget),downcast(object)); \
-        if((widget)->type == WG_ZONE) \
+        if((widget)->class == WG_ZONE) \
             if ((widget)->jumptable.zone-> ## method) \
                 (widget)->jumptable.zone-> ## method(downcast(widget),downcast(object)); \
-        if((widget)->type == WG_PIECE) \
+        if((widget)->class == WG_PIECE) \
             if ((widget)->jumptable.piece-> ## method) \
                 (widget)->jumptable.piece-> ## method(downcast(widget),downcast(object)); \
     }while(0);
@@ -628,7 +628,7 @@ static void call_lua(struct wg_base_internal* const wg, const char* key, struct 
 
 static void call_hover_start(struct wg_base_internal* const wg, const char* key)
 {
-    if (wg->type != WG_PIECE ||
+    if (wg->class != WG_PIECE ||
         strcmp(key, "hover_start") != 0)
         return;
 
@@ -637,7 +637,7 @@ static void call_hover_start(struct wg_base_internal* const wg, const char* key)
 
 static void call_hover_end(struct wg_base_internal* const wg, const char* key)
 {
-    if (wg->type != WG_PIECE ||
+    if (wg->class != WG_PIECE ||
         strcmp(key, "hover_end") != 0)
         return;
 
@@ -646,11 +646,11 @@ static void call_hover_end(struct wg_base_internal* const wg, const char* key)
 
 static void call_drop_start(struct wg_base_internal* const wg, const char* key, struct wg_base_internal* const obj)
 {
-    if (wg->type == WG_ZONE &&
+    if (wg->class == WG_ZONE &&
         strcmp(key, "drop_start") == 0)
         ((struct wg_zone_internal* const)wg)->nominated = true;
 
-    if (wg->type == WG_PIECE &&
+    if (wg->class == WG_PIECE &&
         ((struct wg_piece_internal* const)wg)->zone &&
         strcmp(key, "drop_end") == 0)
         ((struct wg_piece_internal* const)wg)->zone->nominated = true;
@@ -658,11 +658,11 @@ static void call_drop_start(struct wg_base_internal* const wg, const char* key, 
 
 static void call_drop_end(struct wg_base_internal* const wg, const char* key, struct wg_base_internal* const obj)
 {
-    if (wg->type == WG_ZONE &&
+    if (wg->class == WG_ZONE &&
         strcmp(key, "drop_end") == 0)
         ((struct wg_zone_internal* const)wg)->nominated = false;
 
-    if (wg->type == WG_PIECE &&
+    if (wg->class == WG_PIECE &&
         ((struct wg_piece_internal* const)wg)->zone &&
         strcmp(key, "drop_end") == 0)
         ((struct wg_piece_internal* const)wg)->zone->nominated = false;
@@ -670,10 +670,10 @@ static void call_drop_end(struct wg_base_internal* const wg, const char* key, st
 
 static void call_drag_end_drop(struct wg_base_internal* const wg, const char* key, struct wg_base_internal* const obj)
 {
-    if (wg->type == WG_ZONE &&
+    if (wg->class == WG_ZONE &&
         strcmp(key, "drag_end_drop") == 0)
     {
-        if (obj->type != WG_PIECE)
+        if (obj->class != WG_PIECE)
             return;
 
         struct wg_zone_internal* const zone = (struct wg_zone_internal* const) wg;
@@ -693,13 +693,13 @@ static void call_drag_end_drop(struct wg_base_internal* const wg, const char* ke
         zone->nominated = false;
     }
 
-    if (wg->type == WG_PIECE &&
+    if (wg->class == WG_PIECE &&
         strcmp(key, "drag_end_drop") == 0)
     {
         if (!((struct wg_piece_internal* const)wg)->zone)
             return;
 
-        if (obj->type != WG_PIECE)
+        if (obj->class != WG_PIECE)
             return;
 
         // I love typecasting
@@ -810,7 +810,6 @@ static struct wg_base_internal* last_click;
 static struct wg_base_internal* current_hover;
 static struct wg_base_internal* current_drop;
 
-
 /*********************************************/
 /*                  Shaders                  */
 /*********************************************/
@@ -843,7 +842,7 @@ static inline struct wg_base_internal* pick(int x, int y)
     if (hide_hover)
         queue_pop(current_hover);
 
-    for (size_t type = 0; type < WG_TYPE_CNT; type++)
+    for (size_t type = 0; type < WG_CLASS_CNT; type++)
 		for (struct wg_base_internal* wg = queue_head[type]; wg; wg = wg->next, picker_index++)
 		{
 			pick_buffer = picker_index;
@@ -883,7 +882,7 @@ static inline struct wg_base_internal* pick(int x, int y)
 
     struct wg_base_internal* widget = NULL;
 
-    for (size_t type = 0; type < WG_TYPE_CNT && index > 0; type++)
+    for (size_t type = 0; type < WG_CLASS_CNT && index > 0; type++)
     {
         widget = queue_head[type];
 
@@ -1024,11 +1023,11 @@ static void draw_widget(const struct wg_base_internal* const wg)
     //material_apply(NULL);
     glDisable(GL_STENCIL_TEST);
 
-    if (wg->type == WG_BASE)
+    if (wg->class == WG_BASE)
         wg->jumptable.base->draw((const struct wg_base* const) downcast(wg));
-    else if (wg->type == WG_ZONE)
+    else if (wg->class == WG_ZONE)
         wg->jumptable.zone->draw((const struct wg_base* const)downcast(wg));
-    else if (wg->type == WG_PIECE)
+    else if (wg->class == WG_PIECE)
         wg->jumptable.piece->draw((const struct wg_base* const)downcast(wg));
 
 #ifdef WIDGET_DEBUG_DRAW
@@ -1179,8 +1178,8 @@ void widget_engine_draw()
         queue_pop(current_hover);
 
     // Maybe add a second pass for stencil effect?
-    for (size_t type = 0; type < WG_TYPE_CNT; type++)
-		for (struct wg_base_internal* widget = queue_head[type]; widget; widget = widget->next)
+    for (size_t class = 0; class < WG_CLASS_CNT; class++)
+		for (struct wg_base_internal* widget = queue_head[class]; widget; widget = widget->next)
 			draw_widget((struct wg_base_internal*) widget);
 
     if (hide_hover)
@@ -1274,13 +1273,17 @@ struct work_queue* widget_engine_widget_work()
 
     // Since the update method doesn't change maybe we should have a static queue?
     if (widget_engine_state != ENGINE_STATE_LOCKED)
-        for(size_t type = 0; type < WG_TYPE_CNT; type++)
+        for(size_t type = 0; type < WG_CLASS_CNT; type++)
 			for (struct wg_base_internal* widget = queue_head[type]; widget; widget = widget->next)
 			{
 				work_queue_push(work_queue,tweener_blend,widget);
 
-				if(widget->type == WG_BASE && widget->jumptable.base->update)
+				if(widget->class == WG_BASE && widget->jumptable.base->update)
 					work_queue_push(work_queue, widget->jumptable.base->update, widget);
+                else if (widget->class == WG_ZONE && widget->jumptable.base->update)
+                    work_queue_push(work_queue, widget->jumptable.zone->update, widget);
+                else if (widget->class == WG_PIECE && widget->jumptable.base->update)
+                    work_queue_push(work_queue, widget->jumptable.piece->update, widget);
 			}
 
     return work_queue;
@@ -1290,7 +1293,7 @@ struct work_queue* widget_engine_widget_work()
 void widget_engine_event_handler()
 {
     // TODO: Incorperate to the threadpool?
-    for (size_t type = 0; type < WG_TYPE_CNT; type++)
+    for (size_t type = 0; type < WG_CLASS_CNT; type++)
 		if (widget_engine_state != ENGINE_STATE_LOCKED)
 			for (struct wg_base_internal* widget = queue_head[type]; widget; widget = widget->next)
 				call_engine(widget, event_handler);
@@ -1447,33 +1450,26 @@ static int push_keyframe(lua_State* L)
     return 0;
 }
 
-// Pushes the 'type' field of jumptable onto the stack.
+// Pushes the type of widget onto the stack.
 static int push_type(lua_State* L)
 {
     struct wg_base_internal* const wg = (struct wg_base_internal*)luaL_checkudata(L, -2, "widget_mt");
 
-    if (wg->type == WG_BASE)
-        lua_pushstring(L, wg->jumptable.base->type);
-    else if (wg->type == WG_ZONE)
-        lua_pushstring(L, wg->jumptable.zone->type);
-    else if (wg->type == WG_PIECE)
-        lua_pushstring(L, wg->jumptable.piece->type);
-    else
-        lua_pushnil(L);
+    lua_pushlightuserdata(L, wg->jumptable.base);
 
     return 1;
 }
 
-// Pushes the 'type' field of widget onto the stack.
-static int push_widget_type(lua_State* L)
+// Pushes the class of widget onto the stack.
+static int push_class(lua_State* L)
 {
     struct wg_base_internal* const wg = (struct wg_base_internal*)luaL_checkudata(L, -2, "widget_mt");
 
-    if (wg->type == WG_BASE)
+    if (wg->class == WG_BASE)
         lua_pushstring(L, "base");
-    else if (wg->type == WG_ZONE)
+    else if (wg->class == WG_ZONE)
         lua_pushstring(L, "zone");
-    else if (wg->type == WG_PIECE)
+    else if (wg->class == WG_PIECE)
         lua_pushstring(L, "piece");
     else
         lua_pushnil(L);
@@ -1492,10 +1488,8 @@ static int gc(lua_State* L)
     call_engine(wg, gc);
     queue_pop(wg);
 
-    if (wg->type == WG_ZONE)
-    {
+    if (wg->class == WG_ZONE)
         free(((struct wg_zone_internal* const)wg)->pieces);
-    }
 
     // Make sure we don't get stale pointers
     prevent_stale_pointers(wg);
@@ -1513,8 +1507,8 @@ static int index(lua_State* L)
     } lookup[] = {
         {"set_keyframe",set_keyframe,false},
         {"push_keyframe",push_keyframe,false},
+        {"class",push_class,true},
         {"type",push_type,true},
-        {"widget_type",push_widget_type,true},
         {NULL,NULL,false},
     };
 
@@ -1576,6 +1570,128 @@ static int newindex(lua_State* L)
 }
 
 /*********************************************/
+/*              Widgets Methods              */
+/*********************************************/
+
+// TODO: Add type mask
+static bool widgets_class_mask[WG_CLASS_CNT];
+
+static int widgets_setmask(lua_State* L)
+{
+    for(enum wg_class class = 0; class < WG_CLASS_CNT; class++)
+		widgets_class_mask[class] = lua_toboolean(L,class -WG_CLASS_CNT);
+
+    lua_pop(L, WG_CLASS_CNT);
+
+    return 0;
+}
+
+static int widgets_iter(lua_State* L)
+{
+    if (!lua_isfunction(L, -1))
+        return 0;
+
+    lua_getglobal(L, "widgets");
+
+    struct wg_base_internal* wg, *wg_next;
+
+    for(size_t class = 0; class < WG_CLASS_CNT; class++)
+        if(widgets_class_mask[class])
+			for (wg = queue_head[class]; wg; wg = wg_next)
+			{
+				wg_next = wg->next;
+
+				lua_pushvalue(L, -2);
+				lua_pushlightuserdata(L, wg);
+				lua_gettable(L, -3);
+
+				lua_call(L, 1, 0);
+			}
+
+    lua_pop(L, 2);
+
+    return 0;
+}
+
+static int widgets_filter(lua_State* L)
+{
+    if (!lua_isfunction(L, -1))
+        return 0;
+
+    lua_createtable(L, 0, 0);
+
+    lua_getglobal(L, "widgets");
+
+    struct wg_base_internal* wg, * wg_next;
+
+    for (size_t class = 0; class < WG_CLASS_CNT; class++)
+        if (widgets_class_mask[class])
+			for (wg = queue_head[class]; wg; wg = wg_next)
+			{
+				wg_next = wg->next;
+
+				lua_pushvalue(L, -3);
+				lua_pushlightuserdata(L, wg);
+				lua_gettable(L, -3);
+
+				lua_call(L, 1,1);
+
+				if (!lua_toboolean(L, -1))
+				{
+					lua_pop(L, 1);
+					continue;
+				}
+
+				lua_pop(L, 1);
+
+				const size_t len = lua_objlen(L, -2);
+
+				lua_pushinteger(L, len + 1);
+				lua_pushlightuserdata(L, wg);
+				lua_gettable(L, -3);
+
+				lua_settable(L, -4);
+			}
+
+    lua_pop(L, 1);
+    lua_remove(L, -2);
+
+    return 1;
+}
+
+static void widgets_init()
+{
+    // Make a weak global table to contain the widgets
+    // And some functions for manipulating them
+    lua_newtable(lua_state);
+    lua_newtable(lua_state);
+
+    lua_pushvalue(lua_state, -1);
+    lua_setfield(lua_state, -2, "__index");
+
+    lua_pushcfunction(lua_state, widgets_iter);
+    lua_setfield(lua_state, -2, "iter");
+
+    lua_pushcfunction(lua_state, widgets_filter);
+    lua_setfield(lua_state, -2, "filter");
+
+    lua_pushcfunction(lua_state, widgets_setmask);
+    lua_setfield(lua_state, -2, "mask");
+
+    if (0)
+    {
+        lua_pushstring(lua_state, "vk");
+        lua_setfield(lua_state, -2, "__mode");
+    }
+
+    lua_setmetatable(lua_state, -2);
+    lua_setglobal(lua_state, "widgets");
+
+    for(size_t class = 0; class < WG_CLASS_CNT; class++)
+		widgets_class_mask[class] = true;
+}
+
+/*********************************************/
 /*               Widget Style                */
 /*********************************************/
 
@@ -1611,10 +1727,10 @@ static void style_init()
 void widget_engine_init()
 {
     // Set empty pointers to NULL
-    for (size_t i = 0; i < WG_TYPE_CNT; i++)
+    for (size_t class = 0; class < WG_CLASS_CNT; class++)
     {
-        queue_head[i] = NULL;
-        queue_tail[i] = NULL;
+        queue_head[class] = NULL;
+        queue_tail[class] = NULL;
     }
 
     current_drop = NULL;
@@ -1636,22 +1752,7 @@ void widget_engine_init()
 
     zone_and_piece_init();
 
-    // Make a weak global table to contain the widgets
-    // And some functions for manipulating them
-    lua_newtable(lua_state);
-    lua_newtable(lua_state);
-
-    lua_pushvalue(lua_state, -1);
-    lua_setfield(lua_state, -2, "__index");
-
-    if (0)
-    {
-        lua_pushstring(lua_state, "vk");
-        lua_setfield(lua_state, -2, "__mode");
-    }
-
-    lua_setmetatable(lua_state, -2);
-    lua_setglobal(lua_state, "widgets");
+    widgets_init();
         
     // Make the widget meta table
     luaL_newmetatable(lua_state, "widget_mt");
@@ -1668,7 +1769,7 @@ void widget_engine_init()
     lua_pop(lua_state, 1);
 }
 
-static struct wg_base_internal* wg_alloc(enum wg_type type, size_t size)
+static struct wg_base_internal* wg_alloc(enum wg_class class, size_t size)
 {
     struct wg_base_internal* const widget = lua_newuserdata(lua_state, size + sizeof(struct wg_header));
 
@@ -1677,14 +1778,14 @@ static struct wg_base_internal* wg_alloc(enum wg_type type, size_t size)
 
     *widget = (struct wg_base_internal)
     {
-        .type = type,
+        .class = class,
         .next = NULL,
-        .previous = queue_tail[type],
+        .previous = queue_tail[class],
     };
 
     keyframe_default((struct keyframe* const)get_keyframe(widget));
 
-    switch (type)
+    switch (class)
     {
     case WG_BASE:
         widget->c = 0;
@@ -1709,12 +1810,12 @@ static struct wg_base_internal* wg_alloc(enum wg_type type, size_t size)
     lua_pop(lua_state, 1);
 
     // Wire the widget into the queue
-    if (queue_tail[type])
-        queue_tail[type]->next = widget;
+    if (queue_tail[class])
+        queue_tail[class]->next = widget;
     else
-        queue_head[type] = widget;
+        queue_head[class] = widget;
 
-    queue_tail[type] = widget;
+    queue_tail[class] = widget;
     
     if (LUA_TTABLE == lua_type(lua_state, -2))
     {

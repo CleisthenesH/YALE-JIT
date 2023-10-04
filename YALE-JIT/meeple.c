@@ -43,7 +43,7 @@ static void mask(const struct wg_base* const wg)
 		0);
 }
 
-static struct wg_jumptable_piece meeple_table =
+const struct wg_jumptable_piece meeple_jumptable =
 {
 	.type = "meeple",
 
@@ -53,7 +53,7 @@ static struct wg_jumptable_piece meeple_table =
 
 int meeple_new(lua_State* L)
 {
-	struct meeple* meeple = (struct meeple*)wg_alloc_piece( sizeof(struct meeple), &meeple_table);
+	struct meeple* meeple = (struct meeple*)wg_alloc_piece( sizeof(struct meeple), &meeple_jumptable);
 
 	if (!meeple)
 		return 0;

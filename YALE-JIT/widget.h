@@ -7,13 +7,13 @@
 #include <stdlib.h>
 #include "keyframe.h"
 
-enum wg_type
+enum wg_class
 {
 	WG_BASE,
 	WG_ZONE,
 	WG_PIECE,
 
-	WG_TYPE_CNT
+	WG_CLASS_CNT
 };
 
 struct wg_base

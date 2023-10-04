@@ -179,7 +179,7 @@ int newindex(lua_State* L)
 	return -1;
 }
 
-static struct wg_jumptable_zone tile_table =
+const struct wg_jumptable_zone tile_jumptable =
 {
 	.type = "tile",
 
@@ -192,7 +192,7 @@ static struct wg_jumptable_zone tile_table =
 
 int tile_new(lua_State* L)
 {
-	struct tile* tile = (struct tile*) wg_alloc_zone(sizeof(struct tile),&tile_table);
+	struct tile* tile = (struct tile*) wg_alloc_zone(sizeof(struct tile), &tile_jumptable);
 
 	if (!tile)
 		return 0;

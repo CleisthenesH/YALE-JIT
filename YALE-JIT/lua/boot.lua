@@ -5,32 +5,31 @@
 -- Runs once after all inializations have ran but before the main loop.
 
 function moves(piece,zone)
+	widgets.mask(false,true,false)
+
 	local output = {}
 
-	if zone == nil then
-		for k,v in pairs(widgets) do
-			if v.type == "tile" then
-				output[#output+1] = v
-			end
-		end
-
-		return output
+	if zone == nil or zone.type ~= type_tile then
+		return widgets.filter(function(wg) return wg.type == type_tile end)
 	end
 
 	local q = zone.q
 	local r = zone.r
-	
-	for k,v in pairs(widgets) do
-		if v.type == "tile" then
-			local dq = v.q - q
-			local dr = v.r - r
-			if math.abs(dr+dq) <= 1 and math.abs(dr) <= 1 and math.abs(dq) <= 1 then
-				output[#output+1] = v
-			end
+
+	local function is_neighbour(wg)
+		if wg.type ~= type_tile then
+			return false
 		end
+
+		local dq = wg.q - q
+		local dr = wg.r - r
+
+		return math.abs(dr+dq) <= 1 
+			and math.abs(dr) <= 1 
+			and math.abs(dq) <= 1
 	end
 
-	return output
+	return widgets.filter(is_neighbour)
 end
 
 local function axial_to_world(q,r)
@@ -54,7 +53,7 @@ for q = -3,3 do
 end
 
 meeple{x=100, y=100}
-meeple{x=100, y=100}
+meeple{x=200, y=100}
 
 print("Boot Complete")
 
