@@ -1535,12 +1535,12 @@ static int index(lua_State* L)
             if (strcmp(key, "pieces") == 0)
             {
                 lua_getglobal(L, "widgets");
-                lua_createtable(L, zone->used, 0);
+                lua_createtable(L, (int) zone->used, 0);
 
                 for (size_t i = 0; i < zone->used; i++)
                 {
                     lua_pushnumber(L, i + 1);
-                    lua_pushlightuserdata(L, get_internal(zone->pieces[i]));
+                    lua_pushlightuserdata(L, get_internal((struct wg_base*) zone->pieces[i]));
                     lua_gettable(L, -4);
                     lua_settable(L, -3);
                 }
@@ -1555,7 +1555,7 @@ static int index(lua_State* L)
             if (strcmp(key, "zone") == 0)
             {
                 lua_getglobal(L, "widgets");
-                lua_pushlightuserdata(L, get_internal(piece->zone));
+                lua_pushlightuserdata(L, get_internal((struct wg_base*) piece->zone));
                 lua_gettable(L, -2);
 
                 return 1;
