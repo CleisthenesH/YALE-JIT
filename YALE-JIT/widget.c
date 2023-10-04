@@ -1882,6 +1882,10 @@ struct wg_zone* wg_alloc_zone(size_t size, struct wg_jumptable_zone* jumptable)
     wg->highlighted = false;
     wg->nominated = false;
 
+    wg->used = 0;
+    wg->allocated = 0;
+    wg->pieces = NULL;
+
     return (struct wg_zone*)downcast((struct wg_base_internal*) wg);
 }
 
