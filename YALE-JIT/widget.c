@@ -1527,6 +1527,40 @@ static int index(lua_State* L)
                 lua_pushcfunction(L, lookup[i].function);
                 return 1;
             }
+
+        if (wg->class == WG_ZONE)
+        {
+            struct wg_zone_internal* const zone = (struct wg_zone_internal* const) wg;
+
+            if (strcmp(key, "pieces") == 0)
+            {
+                lua_getglobal(L, "widgets");
+                lua_createtable(L, zone->used, 0);
+
+                for (size_t i = 0; i < zone->used; i++)
+                {
+                    lua_pushnumber(L, i + 1);
+                    lua_pushlightuserdata(L, get_internal(zone->pieces[i]));
+                    lua_gettable(L, -4);
+                    lua_settable(L, -3);
+                }
+
+                return 1;
+            }
+        }
+        else if (wg->class == WG_PIECE)
+        {
+            struct wg_piece_internal* const piece = (struct wg_piece_internal* const)wg;
+
+            if (strcmp(key, "zone") == 0)
+            {
+                lua_getglobal(L, "widgets");
+                lua_pushlightuserdata(L, get_internal(piece->zone));
+                lua_gettable(L, -2);
+
+                return 1;
+            }
+        }
     }
 
     if (wg->jumptable.base->index)

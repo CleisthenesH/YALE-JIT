@@ -10,14 +10,15 @@ function moves(piece,zone)
 	local output = {}
 
 	if zone == nil or zone.type ~= type_tile then
-		return widgets.filter(function(wg) return wg.type == type_tile end)
+		return widgets.filter(function(wg) return wg.type == type_tile and #wg.pieces == 0 end)
 	end
 
 	local q = zone.q
 	local r = zone.r
 
 	local function is_neighbour(wg)
-		if wg.type ~= type_tile then
+		print(wg.pieces,#wg.pieces)
+		if wg.type ~= type_tile or #wg.pieces > 0 then
 			return false
 		end
 
