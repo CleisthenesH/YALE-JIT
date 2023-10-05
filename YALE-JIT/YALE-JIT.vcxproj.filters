@@ -56,6 +56,9 @@
     <ClCompile Include="meeple.c">
       <Filter>widgets</Filter>
     </ClCompile>
+    <ClCompile Include="counter.c">
+      <Filter>widgets</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="thread_pool.h">

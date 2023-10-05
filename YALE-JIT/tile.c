@@ -9,7 +9,15 @@
 #include <lua.h>
 #include <lauxlib.h>
 #include <lualib.h>
-#include <luajit.h>
+
+const struct wg_jumptable_zone tile_jumptable;
+
+struct tile
+{
+	struct wg_zone;
+	enum TEAMS team;
+	enum tile_id id;
+};
 
 static const char* tile_to_string[] = {
 	"empty",
@@ -37,13 +45,6 @@ static const char* tile_to_string[] = {
 	"swamp",
 	"tower",
 	"town"
-};
-
-struct tile
-{
-	struct wg_zone;
-	enum TEAMS team;
-	enum tile_id id;
 };
 
 static inline enum TILE_PALLET state_to_pallet(struct wg_zone* zone)
@@ -127,7 +128,7 @@ static void lua_toid(lua_State* L, int idx, struct tile* tile)
 
 static int index(lua_State* L)
 {
-	struct tile* const tile = (struct tile* const) luaL_checkudata(L, -2, "widget_mt");
+	struct tile* const tile = (struct tile* const) check_widget_lua(-2, &tile_jumptable);
 
 	if (lua_type(L, -1) == LUA_TSTRING)
 	{
@@ -156,7 +157,7 @@ static int index(lua_State* L)
 
 static int newindex(lua_State* L)
 {
-	struct tile* const tile = (struct tile* const)luaL_checkudata(L, -3, "widget_mt");
+	struct tile* const tile = (struct tile* const) check_widget_lua(-3, &tile_jumptable);
 
 	if (lua_type(L, -2) == LUA_TSTRING)
 	{

@@ -194,6 +194,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="button.c" />
+    <ClCompile Include="counter.c" />
     <ClCompile Include="keyframe.c" />
     <ClCompile Include="main.c" />
     <ClCompile Include="lua_lib.c" />

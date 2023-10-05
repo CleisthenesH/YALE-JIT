@@ -1164,6 +1164,18 @@ struct wg_base* check_widget(struct wg_base* wg, const struct wg_jumptable_base*
     return ((get_internal(wg))->jumptable.base == jumptable) ? wg : NULL;
 }
 
+struct wg_base* check_widget_lua(int idx, const struct wg_jumptable_base* const jumptable)
+{
+    if (lua_type(lua_state, idx) != LUA_TUSERDATA)
+        return NULL;
+
+    struct wg_base_internal* wg = (struct wg_base_internal*) luaL_checkudata(lua_state, idx, "widget_mt");
+
+    if (!wg || wg->jumptable.base != jumptable)
+        return NULL;
+
+    return downcast(wg);
+}
 
 /*********************************************/
 /*            Big Four Callbacks             */

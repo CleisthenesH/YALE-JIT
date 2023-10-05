@@ -13,6 +13,7 @@ ALLEGRO_BITMAP* resource_manager_tile(enum tile_id);
 
 enum icon_id
 {
+	ICON_ID_NULL = 0,
 	ICON_ID_POLICE_BADGE = 1,
 	ICON_ID_RIPOSTE = 2,
 	ICON_ID_CARD_10_CLUBS = 3,

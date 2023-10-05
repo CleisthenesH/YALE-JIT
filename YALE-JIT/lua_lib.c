@@ -13,6 +13,9 @@ extern double delta_timestamp;
 extern int button_new(lua_State*);
 extern const struct wg_jumptable_base button_jumptable;
 
+extern int counter_new(lua_State*);
+extern const struct wg_jumptable_base counter_jumptable;
+
 extern int text_entry_new(lua_State*);
 extern const struct wg_jumptable_base text_entry_jumptable;
 
@@ -67,6 +70,10 @@ void lua_openL_misc(lua_State* L)
 	lua_register(L, "button", button_new);
 	lua_pushlightuserdata(L, &button_jumptable);
 	lua_setglobal(L, "type_button");
+
+	lua_register(L, "counter", counter_new);
+	lua_pushlightuserdata(L, &counter_jumptable);
+	lua_setglobal(L, "type_counter");
 
 	lua_register(L, "text_entry", text_entry_new);
 	lua_pushlightuserdata(L, &text_entry_jumptable);

@@ -9,13 +9,14 @@
 #include <lua.h>
 #include <lauxlib.h>
 #include <lualib.h>
-#include <luajit.h>
 
 struct meeple
 {
 	struct wg_piece;
 	enum TEAMS team;
 };
+
+const struct wg_jumptable_piece meeple_jumptable;
 
 static void draw(const struct wg_base* const wg)
 {
@@ -45,7 +46,7 @@ static void mask(const struct wg_base* const wg)
 
 static int index(lua_State* L)
 {
-	struct meeple* const meeple = (struct meeple* const)luaL_checkudata(L, -2, "widget_mt");
+	struct meeple* const meeple = (struct meeple* const)check_widget_lua(-2, &meeple_jumptable);
 
 	if (lua_type(L, -1) == LUA_TSTRING)
 	{

@@ -56,5 +56,12 @@ end
 meeple{x=100, y=100, team = "red"}
 meeple{x=200, y=100, team = "blue"}
 
+handle = counter{x=100,y=500,icon=2206}
+
+handle:set(1)
+handle:add(1)
+
+handle.value = 3
+
 print("Boot Complete")
 
