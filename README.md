@@ -20,4 +20,4 @@ These are some pretty big changes so I've decided on a pseudo-rewrite of the eng
 I comfort myself through this process by saying:
 > Good programmers throw out a lot of code.
 
-Check [the ordinal](https://github.com/CleisthenesH/YALE) for comparison more info.
+Check [the original](https://github.com/CleisthenesH/YALE) for comparison and more info.

@@ -19,6 +19,7 @@
 #include <luajit.h>
 
 #define EASY_BACKGROUND
+#define EASY_BOARDER
 
 // Thread Pool includes
 #include "thread_pool.h"
@@ -422,6 +423,14 @@ void main()
         predraw();
         thread_pool_wait();
         widget_engine_draw();
+
+#ifdef EASY_BOARDER
+        al_use_transform(&identity_transform);
+        material_apply(NULL);
+        al_draw_rectangle(0, 0, 
+            al_get_display_width(display), al_get_display_height(display),
+            al_map_rgba(0,0,0,100), 10);
+#endif
 
 #ifdef EASY_FPS
         al_use_transform(&identity_transform);
