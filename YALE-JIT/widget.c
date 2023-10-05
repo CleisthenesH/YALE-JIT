@@ -343,17 +343,18 @@ static struct wg_piece_internal* moving_piece;
 static struct wg_zone_internal* originating_zone;
 
 static bool auto_snap;					// When making a potential move automatically snap the piece valid zones.
-static bool auto_highlight;			// When making a potential move automatically highlight valid zone.
+static bool auto_highlight;			    // When making a potential move automatically highlight valid zone.
 static bool auto_transition;			// After making a move auto transition to the zones snap.
-static bool auto_block_invalid_moves;	// A zone can only be nominated if it is a vaild move.
-static bool auto_self_heightlight;		// Highlight the zone a piece comes fromz.
+static bool auto_self_highlight;		// Highlight the zone a piece comes from but block it from calling vaild_move.
 
 static void zone_and_piece_init()
 {
     auto_highlight = true;
     auto_snap = true;
     auto_transition = true;
-    auto_block_invalid_moves = true;
+    auto_self_highlight = true;
+
+    originating_zone = NULL;
 }
 
 // Return the zones to the idle state
@@ -393,6 +394,24 @@ static void call_moves(struct wg_piece_internal* wg)
     {
         lua_pushlightuserdata(lua_state, get_internal((struct wg_base*) wg->zone));
         lua_gettable(lua_state, -4);
+
+        if (auto_self_highlight)
+        {
+            originating_zone = (struct wg_zone_internal* const)get_internal((struct wg_base*)wg->zone);
+
+            originating_zone->valid_move = true;
+
+            if (auto_highlight)
+            {
+                originating_zone->highlighted = true;
+
+                if (originating_zone->jumptable.zone->highlight_start)
+                    originating_zone->jumptable.zone->highlight_start((struct wg_zone* const)downcast((struct wg_base_internal*)originating_zone));
+            }
+
+            if (auto_snap)
+                originating_zone->snappable = true;
+        }
     }
     else
     {
@@ -437,6 +456,8 @@ static void call_moves(struct wg_piece_internal* wg)
 
         if (auto_snap)
             zone->snappable = true;
+
+
 
         lua_pop(lua_state, 1);
     }
@@ -487,7 +508,15 @@ static void moves_callback(struct wg_zone_internal* const zone, struct wg_piece_
     lua_getglobal(lua_state, "widgets");
 
     if (vaild)
+    {
+        if (auto_self_highlight && zone == originating_zone)
+        {
+            lua_pop(lua_state, 1);
+            return;
+        }
+
         lua_getglobal(lua_state, "vaild_move");
+    }
     else
         lua_getglobal(lua_state, "invaild_move");
 
@@ -685,12 +714,16 @@ static void call_drag_end_drop(struct wg_base_internal* const wg, const char* ke
             return;
         }
 
+        if (zone == originating_zone)
+            return;
+
         move_piece(zone, piece);
         moves_callback(zone, piece, true);
         idle_zones();
         call_moves(piece);
         
         zone->nominated = false;
+        originating_zone = NULL;
     }
 
     if (wg->class == WG_PIECE &&
@@ -712,12 +745,16 @@ static void call_drag_end_drop(struct wg_base_internal* const wg, const char* ke
             return;
         }
 
+        if (zone == originating_zone)
+            return;
+
         move_piece(zone, piece);
         moves_callback(zone, piece, true);
         idle_zones();
         call_moves(piece);
 
         zone->nominated = false;
+        originating_zone = NULL;
     }
 }
 
