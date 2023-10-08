@@ -1836,6 +1836,8 @@ void widget_engine_init()
     zone_and_piece_init();
 
     widgets_init();
+
+    lua_register(lua_state, "manual_move", manual_move);
         
     // Make the widget meta table
     luaL_newmetatable(lua_state, "widget_mt");

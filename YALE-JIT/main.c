@@ -43,6 +43,10 @@ void lua_openL_misc(lua_State*);
 // Resource Manager includes
 void resource_manager_init();
 
+// Scheduler includes
+ALLEGRO_EVENT_SOURCE* scheduler_init();
+void scheduler_generate_events();
+
 // Static variable declaration
 static ALLEGRO_DISPLAY* display;
 static ALLEGRO_EVENT_QUEUE* main_event_queue;
@@ -383,10 +387,8 @@ void main()
 
 	// Init Systems, check dependency graph for order.
 	resource_manager_init();
-    /*
-	al_register_event_source(main_event_queue, scheduler_init());
-	particle_engine_init();
-	*/
+    al_register_event_source(main_event_queue, scheduler_init());
+	// particle_engine_init();
 
     // Miscellaneous Lua Interfaces
     lua_openL_misc(lua_state);
@@ -404,6 +406,8 @@ void main()
 
         if (future_timestamp - current_timestamp > 0.25)
             future_timestamp = current_timestamp + 0.25;
+
+        scheduler_generate_events();
 
         if (al_peek_next_event(main_event_queue, &current_event)
             && current_event.any.timestamp <= future_timestamp)

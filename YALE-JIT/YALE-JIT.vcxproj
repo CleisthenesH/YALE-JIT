@@ -184,6 +184,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <None Include="..\README.md" />
+    <None Include="lua\board.lua" />
     <None Include="lua\boot.lua" />
     <None Include="lua\config.lua" />
     <None Include="packages.config" />
@@ -201,6 +202,7 @@
     <ClCompile Include="material.c" />
     <ClCompile Include="meeple.c" />
     <ClCompile Include="resource_manager.c" />
+    <ClCompile Include="scheduler.c" />
     <ClCompile Include="text_entry.c" />
     <ClCompile Include="thread_pool.c" />
     <ClCompile Include="tile.c" />
@@ -211,6 +213,7 @@
     <ClInclude Include="material.h" />
     <ClInclude Include="meeple_tile_utility.h" />
     <ClInclude Include="resource_manager.h" />
+    <ClInclude Include="scheduler.h" />
     <ClInclude Include="thread_pool.h" />
     <ClInclude Include="widget.h" />
   </ItemGroup>

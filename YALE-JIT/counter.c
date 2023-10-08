@@ -151,7 +151,12 @@ int counter_new(lua_State* L)
 		if (lua_isnumber(L, -1))
 			counter->icon = lua_tointeger(L, -1);
 
-		lua_pop(L, 1);
+		lua_getfield(L, -3, "value");
+
+		if (lua_isnumber(L, -1))
+			counter->value = lua_tointeger(L, -1);
+
+		lua_pop(L, 2);
 	}
 
 	const double min_half_width = 55;

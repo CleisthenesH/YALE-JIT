@@ -9,9 +9,9 @@
 
 enum wg_class
 {
-	WG_BASE,
 	WG_ZONE,
 	WG_PIECE,
+	WG_BASE,
 
 	WG_CLASS_CNT
 };

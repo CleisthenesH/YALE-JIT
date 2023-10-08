@@ -5,7 +5,7 @@
 -- Runs once after all inializations have ran but before the main loop.
 
 function moves(piece,zone)
-	widgets.mask(false,true,false)
+	widgets.mask(true,false,false)
 
 	local output = {}
 
@@ -17,7 +17,6 @@ function moves(piece,zone)
 	local r = zone.r
 
 	local function is_neighbour(wg)
-		print(wg.pieces,#wg.pieces)
 		if wg.type ~= type_tile or #wg.pieces > 0 then
 			return false
 		end
@@ -33,35 +32,15 @@ function moves(piece,zone)
 	return widgets.filter(is_neighbour)
 end
 
-local function axial_to_world(q,r)
-	local size = 50
-	
-	return 1.1*size*math.sqrt(3)*(q+0.5*r),1.1*size*1.5*r
-end
+dofile("lua/board.lua")
 
-for q = -3,3 do
-	for r = -3,3 do	
-		if math.abs(q+r) < 4 then
-			local dx, dy = axial_to_world(q,r)
-			tile{q=q,r=r,
-				x=800+dx,y=600+dy,
-				team =  q < 0 
-				and "red" 
-				or "blue",
-				tile = "hills"}
-		end
-	end
-end
+wood_counter  = counter{x=70,  y=70, icon=2206, value = 234}
+stone_counter = counter{x=70, y=190, icon=3455, value = 234}
+gold_counter  = counter{x=70, y=310, icon=2562, value = 234}
 
-meeple{x=100, y=100, team = "red"}
-meeple{x=200, y=100, team = "blue"}
-
-handle = counter{x=100,y=500,icon=2206}
-
-handle:set(1)
-handle:add(1)
-
-handle.value = 3
+local item = scheduler.push(5.0, function() print("test 5") end)
+local item2 = scheduler.push(7.0, function() print("test 7") end)
+local item3 = scheduler.push(6.0, function() print("test 6") end)
 
 print("Boot Complete")
 
