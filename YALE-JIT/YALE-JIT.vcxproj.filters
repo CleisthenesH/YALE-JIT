@@ -65,6 +65,9 @@
     <ClCompile Include="scheduler.c">
       <Filter>core\scheduler</Filter>
     </ClCompile>
+    <ClCompile Include="particle.c">
+      <Filter>core\particle</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="thread_pool.h">
@@ -87,6 +90,9 @@
     </ClInclude>
     <ClInclude Include="scheduler.h">
       <Filter>core\scheduler</Filter>
+    </ClInclude>
+    <ClInclude Include="particle.h">
+      <Filter>core\particle</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -116,6 +122,9 @@
     </Filter>
     <Filter Include="core\scheduler">
       <UniqueIdentifier>{db8c6fe0-a6f7-4b52-87ca-71102c374505}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="core\particle">
+      <UniqueIdentifier>{bab12b64-689a-4532-975b-a6990dd37155}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>

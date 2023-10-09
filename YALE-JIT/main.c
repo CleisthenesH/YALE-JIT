@@ -26,8 +26,6 @@
 void thread_pool_init(size_t);
 void thread_pool_destroy();
 
-//void particle_engine_init();
-//struct work_queue* particle_engine_update();
 
 // Widget Interface includes
 void widget_engine_init();
@@ -388,7 +386,6 @@ void main()
 	// Init Systems, check dependency graph for order.
 	resource_manager_init();
     al_register_event_source(main_event_queue, scheduler_init());
-	// particle_engine_init();
 
     // Miscellaneous Lua Interfaces
     lua_openL_misc(lua_state);

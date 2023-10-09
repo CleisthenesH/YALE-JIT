@@ -38,9 +38,5 @@ wood_counter  = counter{x=70,  y=70, icon=2206, value = 234}
 stone_counter = counter{x=70, y=190, icon=3455, value = 234}
 gold_counter  = counter{x=70, y=310, icon=2562, value = 234}
 
-local item = scheduler.push(5.0, function() print("test 5") end)
-local item2 = scheduler.push(7.0, function() print("test 7") end)
-local item3 = scheduler.push(6.0, function() print("test 6") end)
-
 print("Boot Complete")
 

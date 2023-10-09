@@ -10,6 +10,15 @@
 #include <lauxlib.h>
 #include <lualib.h>
 
+#include "particle.h"
+#include <allegro5/allegro_primitives.h>
+struct particle_bin* bin;
+
+static void function(void* data, double time)
+{
+	al_draw_filled_circle(10 + 10 * time, 10, 10, al_map_rgb(255, 255, 255));
+}
+
 struct meeple
 {
 	struct wg_piece;
@@ -33,6 +42,8 @@ static void draw(const struct wg_base* const wg)
 		0, 0, 512, 512,
 		-wg->half_width, -wg->half_height, 2 * wg->half_width, 2 * wg->half_height,
 		0);
+
+	particle_bin_callback(bin);
 }
 
 static void mask(const struct wg_base* const wg)
@@ -108,6 +119,12 @@ int meeple_new(lua_State* L)
 	{
 		lua_getfield(L, -2, "team");
 		lua_toteam(L, -1, meeple);
+	}
+
+	if (!bin)
+	{
+		bin = particle_bin_new(1);
+		particle_bin_append(bin, function, NULL, NULL, 2);
 	}
 
 	return 1;
