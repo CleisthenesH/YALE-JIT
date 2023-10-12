@@ -16,7 +16,7 @@
 struct counter
 {
 	struct wg_base;
-	ALLEGRO_FONT* font;
+	struct widget_pallet* pallet;
 
 	enum icon_id icon;
 	int value;
@@ -27,10 +27,15 @@ const struct wg_jumptable_base counter_jumptable;
 static void draw(const struct wg_base* const wg)
 {
 	const struct counter* const counter = (const struct counter* const)wg;
+	const struct widget_pallet* const pallet = counter->pallet;
 
 	al_draw_filled_rounded_rectangle(-wg->half_width, -wg->half_height, wg->half_width, wg->half_height,
-		primary_pallet.edge_radius, primary_pallet.edge_radius,
-		primary_pallet.main);
+		pallet->edge_radius, pallet->edge_radius,
+		pallet->main);
+
+	al_draw_rounded_rectangle(-wg->half_width, -wg->half_height, wg->half_width, wg->half_height,
+		pallet->edge_radius, pallet->edge_radius,
+		pallet->edge, pallet->edge_width);
 
 	if(counter->icon != ICON_ID_NULL)
 		al_draw_scaled_bitmap(resource_manager_icon(counter->icon),
@@ -38,20 +43,23 @@ static void draw(const struct wg_base* const wg)
 			-50,-50,100,100,
 			0);
 
-	al_draw_textf(counter->font, al_map_rgb_f(1, 1, 1),
-		0, -0.5 * al_get_font_line_height(counter->font),
+	al_draw_textf(pallet->font, al_map_rgb_f(1, 1, 1),
+		0, -0.5 * al_get_font_line_height(pallet->font),
 		ALLEGRO_ALIGN_CENTRE, "%d",
 		counter->value);
 
 	al_draw_rounded_rectangle(-wg->half_width, -wg->half_height, wg->half_width, wg->half_height,
-		primary_pallet.edge_radius, primary_pallet.edge_radius,
-		primary_pallet.edge, primary_pallet.edge_width);
+		pallet->edge_radius, pallet->edge_radius,
+		pallet->edge, pallet->edge_width);
 }
 
 static void mask(const struct wg_base* const wg)
 {
+	const struct counter* const counter = (const struct counter* const)wg;
+	const struct widget_pallet* const pallet = counter->pallet;
+
 	al_draw_filled_rounded_rectangle(-wg->half_width, -wg->half_height, wg->half_width, wg->half_height,
-		primary_pallet.edge_radius, primary_pallet.edge_radius,
+		pallet->edge_radius, pallet->edge_radius,
 		al_map_rgb(255, 0, 0));
 }
 
@@ -141,7 +149,7 @@ int counter_new(lua_State* L)
 	struct counter* counter = (struct counter*)wg_alloc_base(sizeof(struct counter), &counter_jumptable);
 
 	counter->value = 0;
-	counter->font = resource_manager_font(FONT_ID_SHINYPEABERRY);
+	counter->pallet = &primary_pallet;
 	counter->icon = ICON_ID_NULL;
 
 	if (lua_istable(L, -2))

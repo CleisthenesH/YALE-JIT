@@ -18,14 +18,13 @@ extern ALLEGRO_EVENT current_event;
 
 struct text_entry {
 	struct wg_base;
+	struct widget_pallet* pallet;
 
 	enum {
 		TEXT_ENTRY_IDLE,
 		TEXT_ENTRY_HOVER,
 		TEXT_ENTRY_ACTIVE
 	} state;
-
-	ALLEGRO_FONT* font;
 
 	size_t input_size;
 	char input[256];	
@@ -38,6 +37,7 @@ struct text_entry {
 static void draw(const struct wg_base* const wg)
 {
 	const struct text_entry* const text_entry = (const struct text_entry* const)wg;
+	const struct widget_pallet* const pallet = text_entry->pallet;
 
 	const double text_left_padding = 10;
 
@@ -52,15 +52,15 @@ static void draw(const struct wg_base* const wg)
 	ALLEGRO_COLOR fill;
 
 	if (text_entry->state == TEXT_ENTRY_IDLE)
-		fill = primary_pallet.recess;
+		fill = pallet->recess;
 	else if(text_entry->state == TEXT_ENTRY_HOVER)
-		fill = primary_pallet.main;
+		fill = pallet->main;
 	else
-		fill = primary_pallet.highlight;
+		fill = pallet->highlight;
 
 	al_draw_filled_rounded_rectangle(-wg->half_width, -wg->half_height,
 		wg->half_width, wg->half_height,
-		primary_pallet.edge_radius, primary_pallet.edge_radius,
+		pallet->edge_radius, pallet->edge_radius,
 		fill);
 
 	glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
@@ -70,19 +70,19 @@ static void draw(const struct wg_base* const wg)
 
 	if (text_entry->input_size == 0)
 	{
-		al_draw_text(text_entry->font, primary_pallet.deactivated,
+		al_draw_text(pallet->font, pallet->deactivated,
 			-wg->half_width + text_left_padding,-16, 0,
 			text_entry->place_holder);
 	}
 	else {
-		const auto text_width = al_get_text_width(text_entry->font, text_entry->input);
+		const auto text_width = al_get_text_width(pallet->font, text_entry->input);
 
 		if (text_width > 2 * wg->half_width - text_left_padding)
-			al_draw_text(text_entry->font, primary_pallet.activated,
+			al_draw_text(pallet->font, pallet->activated,
 				wg->half_width - text_width, -16,
 				0, text_entry->input);
 		else
-			al_draw_text(text_entry->font, primary_pallet.activated,
+			al_draw_text(pallet->font, pallet->activated,
 				-wg->half_width + text_left_padding, -16,
 				0, text_entry->input);
 	}
@@ -91,14 +91,17 @@ static void draw(const struct wg_base* const wg)
 
 	al_draw_rounded_rectangle(-wg->half_width, -wg->half_height,
 		wg->half_width, wg->half_height,
-		primary_pallet.edge_radius, primary_pallet.edge_radius,
-		primary_pallet.edge, primary_pallet.edge_width);
+		pallet->edge_radius, pallet->edge_radius,
+		pallet->edge, pallet->edge_width);
 }
 
 static void mask(const struct wg_base* const wg)
 {
+	const struct text_entry* const text_entry = (const struct text_entry* const)wg;
+	const struct widget_pallet* const pallet = text_entry->pallet;
+
 	al_draw_filled_rounded_rectangle(-wg->half_width, -wg->half_height, wg->half_width, wg->half_height,
-		primary_pallet.edge_radius, primary_pallet.edge_radius,
+		pallet->edge_radius, pallet->edge_radius,
 		al_map_rgb(255, 0, 0));
 }
 
@@ -259,7 +262,7 @@ int text_entry_new(lua_State* L)
 	text_entry->input[0] = '\0';
 	text_entry->input_size = 0;
 	text_entry->state = TEXT_ENTRY_IDLE;
-	text_entry->font = resource_manager_font(FONT_ID_SHINYPEABERRY);
+	text_entry->pallet = &primary_pallet;
 
 	text_entry->half_width = 300 > text_entry->half_width ? 300 : text_entry->half_width;
 	text_entry->half_height = 20 > text_entry->half_height ? 20 : text_entry->half_height;

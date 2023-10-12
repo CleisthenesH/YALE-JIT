@@ -1779,7 +1779,6 @@ static void widgets_init()
 /*********************************************/
 
 struct widget_pallet primary_pallet, secondary_pallet;
-ALLEGRO_FONT* primary_font;
 
 static void style_init()
 {
@@ -1794,12 +1793,12 @@ static void style_init()
         .edge_width = 2,
 
         .activated = al_map_rgb(255,255,255),
-        .deactivated = al_map_rgb(128,128,128)
+        .deactivated = al_map_rgb(128,128,128),
+        .font = resource_manager_font(FONT_ID_SHINYPEABERRY),
     };
 
-    secondary_pallet = primary_pallet;
-
-    primary_font = resource_manager_font(FONT_ID_SHINYPEABERRY);
+    memcpy_s(&secondary_pallet, sizeof(struct widget_pallet),
+        &primary_pallet, sizeof(struct widget_pallet));
 }
 
 /*********************************************/

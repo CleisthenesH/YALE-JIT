@@ -14,8 +14,12 @@
 struct button
 {
 	struct wg_base;
-	ALLEGRO_COLOR color;
-	ALLEGRO_FONT* font;
+	struct widget_pallet* pallet;
+
+	enum {
+		BUTTON_IDLE,
+		BUTTON_HOVER
+	} state;
 
 	char text[];
 };
@@ -23,36 +27,39 @@ struct button
 static void draw(const struct wg_base* const wg)
 {
 	const struct button* const button = (const struct button* const)wg;
+	const struct widget_pallet* const pallet = button->pallet;
 
 	al_draw_filled_rounded_rectangle(-wg->half_width, -wg->half_height, wg->half_width, wg->half_height,
-		primary_pallet.edge_radius, primary_pallet.edge_radius,
-		button->color);
+		pallet->edge_radius, pallet->edge_radius,
+		button->state == BUTTON_IDLE ? pallet->main : pallet->highlight);
 
 	if (button->text)
-		al_draw_text(button->font, al_map_rgb_f(1, 1, 1),
-			0, -0.5 * al_get_font_line_height(button->font),
+		al_draw_text(pallet->font, al_map_rgb_f(1, 1, 1),
+			0, -0.5 * al_get_font_line_height(pallet->font),
 			ALLEGRO_ALIGN_CENTRE, button->text);
 
 	al_draw_rounded_rectangle(-wg->half_width, -wg->half_height, wg->half_width, wg->half_height,
-		primary_pallet.edge_radius, primary_pallet.edge_radius,
-		primary_pallet.edge, primary_pallet.edge_width);
+		pallet->edge_radius, pallet->edge_radius,
+		pallet->edge, pallet->edge_width);
 }
 
 static void mask(const struct wg_base* const wg)
 {
+	const struct button* const button = (const struct button* const)wg;
+
 	al_draw_filled_rounded_rectangle(-wg->half_width, -wg->half_height, wg->half_width, wg->half_height,
-		primary_pallet.edge_radius, primary_pallet.edge_radius,
-		al_map_rgb(255, 0, 0));
+		button->pallet->edge_radius, button->pallet->edge_radius,
+		al_map_rgb(255, 255, 255));
 }
 
 static void hover_start(struct wg_base* const wg)
 {
-	((struct button* const) wg)->color = primary_pallet.highlight;
+	((struct button* const) wg)->state = BUTTON_HOVER;
 }
 
 static void hover_end(struct wg_base* const wg)
 {
-	((struct button* const)wg)->color = primary_pallet.main;
+	((struct button* const)wg)->state = BUTTON_IDLE;
 }
 
 const struct wg_jumptable_base button_jumptable =
@@ -88,10 +95,10 @@ int button_new(lua_State* L)
 
 	strcpy_s(button->text, text_len + 1, text ? text : "Placeholder");
 
-	button->font = resource_manager_font(FONT_ID_SHINYPEABERRY);
-	button->color = primary_pallet.main;
+	button->pallet = &primary_pallet;
+	button->state = BUTTON_IDLE;
 
-	const double min_half_width = 8 + 0.5 * al_get_text_width(button->font, button->text);
+	const double min_half_width = 8 + 0.5 * al_get_text_width(button->pallet->font, button->text);
 	const double min_half_height = 25;
 
 	button->half_width = min_half_width > button->half_width ? min_half_width : button->half_width;

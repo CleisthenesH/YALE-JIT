@@ -187,6 +187,7 @@
     <None Include="lua\board.lua" />
     <None Include="lua\boot.lua" />
     <None Include="lua\config.lua" />
+    <None Include="lua\HUD_test.lua" />
     <None Include="packages.config" />
     <None Include="shaders\offscreen.frag" />
     <None Include="shaders\offscreen.vert" />

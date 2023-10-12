@@ -6,6 +6,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include "keyframe.h"
+#include <allegro5/allegro_font.h>
 
 enum wg_class
 {
@@ -111,8 +112,8 @@ struct widget_pallet
 
 	ALLEGRO_COLOR activated;
 	ALLEGRO_COLOR deactivated;
+
+	ALLEGRO_FONT* font;
 };
 
 struct widget_pallet primary_pallet, secondary_pallet;
-
-struct ALLEGRO_FONT* primary_font;

@@ -24,6 +24,9 @@
     <None Include="lua\board.lua">
       <Filter>scripts</Filter>
     </None>
+    <None Include="lua\HUD_test.lua">
+      <Filter>scripts</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="thread_pool.c">
@@ -47,19 +50,10 @@
     <ClCompile Include="material.c">
       <Filter>core\widget\components</Filter>
     </ClCompile>
-    <ClCompile Include="button.c">
-      <Filter>widgets</Filter>
-    </ClCompile>
-    <ClCompile Include="text_entry.c">
-      <Filter>widgets</Filter>
-    </ClCompile>
     <ClCompile Include="tile.c">
       <Filter>widgets</Filter>
     </ClCompile>
     <ClCompile Include="meeple.c">
-      <Filter>widgets</Filter>
-    </ClCompile>
-    <ClCompile Include="counter.c">
       <Filter>widgets</Filter>
     </ClCompile>
     <ClCompile Include="scheduler.c">
@@ -67,6 +61,15 @@
     </ClCompile>
     <ClCompile Include="particle.c">
       <Filter>core\particle</Filter>
+    </ClCompile>
+    <ClCompile Include="button.c">
+      <Filter>widgets\HUD</Filter>
+    </ClCompile>
+    <ClCompile Include="counter.c">
+      <Filter>widgets\HUD</Filter>
+    </ClCompile>
+    <ClCompile Include="text_entry.c">
+      <Filter>widgets\HUD</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -125,6 +128,9 @@
     </Filter>
     <Filter Include="core\particle">
       <UniqueIdentifier>{bab12b64-689a-4532-975b-a6990dd37155}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="widgets\HUD">
+      <UniqueIdentifier>{7efb0f2e-fde6-45b9-829a-d0e13e395431}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
