@@ -1976,7 +1976,7 @@ struct wg_piece* wg_alloc_piece(size_t size, struct wg_jumptable_piece* jumptabl
     struct wg_piece_internal* wg = (struct wg_piece_internal*)wg_alloc(WG_PIECE, size);
 
     wg->draggable = true;
-    wg->snappable = true;
+    wg->snappable = false;
     wg->jumptable.piece = (struct wg_jumptable_piece*)jumptable;
 
     wg->zone = NULL;

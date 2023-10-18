@@ -5,6 +5,6 @@
 -- Runs after lua has been initalized but before anything else.
 -- Will be used to config things like display size/ thread pool size.
 
-boot_file = "lua/HUD_TEST.lua"
+--boot_file = "lua/HUD_TEST.lua"
 
 print("Config Complete")
