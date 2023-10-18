@@ -8,14 +8,9 @@
 #include "keyframe.h"
 #include <allegro5/allegro_font.h>
 
-enum wg_class
-{
-	WG_ZONE,
-	WG_PIECE,
-	WG_BASE,
-
-	WG_CLASS_CNT
-};
+/*********************************************/
+/*            Widget Class structs           */
+/*********************************************/
 
 struct wg_base
 {
@@ -45,6 +40,23 @@ struct wg_piece
 
 	struct wg_zone* zone;
 };
+
+struct wg_hud
+{
+	struct wg_base;
+
+	struct widget_pallet* pallet;
+
+	enum {
+		HUD_IDLE,
+		HUD_HOVER,
+		HUD_ACTIVE
+	} hud_state;
+};
+
+/*********************************************/
+/*             Widget Jumptables             */
+/*********************************************/
 
 struct wg_jumptable_base
 {
@@ -90,17 +102,23 @@ struct wg_jumptable_piece
 	struct wg_jumptable_base;
 };
 
-struct wg_base* wg_alloc_base(size_t, struct wg_jumptable_base*);
+struct wg_jumptable_hud
+{
+	struct wg_jumptable_base;
+};
+
+/*********************************************/
+/*             Widget Allocations            */
+/*********************************************/
+
 struct wg_zone* wg_alloc_zone(size_t, struct wg_jumptable_zone*);
 struct wg_piece* wg_alloc_piece(size_t, struct wg_jumptable_piece*);
+struct wg_hud* wg_alloc_hud(size_t, struct wg_jumptable_hud*);
 
-struct wg_base* check_widget_lua(int, const struct wg_jumptable_base* const);
+/*********************************************/
+/*              Widget HUD Pallets           */
+/*********************************************/
 
-// TODO: remove
-void stack_dump(struct lua_State*);
-
-
-// Standard Style
 struct widget_pallet
 {
 	ALLEGRO_COLOR main;
@@ -117,3 +135,12 @@ struct widget_pallet
 };
 
 struct widget_pallet primary_pallet, secondary_pallet;
+
+/*********************************************/
+/*               Miscellaneous               */
+/*********************************************/
+
+struct wg_base* check_widget_lua(int, const struct wg_jumptable_base* const);
+
+// TODO: remove
+void stack_dump(struct lua_State*);

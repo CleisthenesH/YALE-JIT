@@ -17,14 +17,7 @@ extern ALLEGRO_EVENT current_event;
 #define WIDGET_TYPE text_entry
 
 struct text_entry {
-	struct wg_base;
-	struct widget_pallet* pallet;
-
-	enum {
-		TEXT_ENTRY_IDLE,
-		TEXT_ENTRY_HOVER,
-		TEXT_ENTRY_ACTIVE
-	} state;
+	struct wg_hud;
 
 	size_t input_size;
 	char input[256];	
@@ -51,9 +44,9 @@ static void draw(const struct wg_base* const wg)
 
 	ALLEGRO_COLOR fill;
 
-	if (text_entry->state == TEXT_ENTRY_IDLE)
+	if (text_entry->hud_state == HUD_IDLE)
 		fill = pallet->recess;
-	else if(text_entry->state == TEXT_ENTRY_HOVER)
+	else if(text_entry->hud_state == HUD_HOVER)
 		fill = pallet->main;
 	else
 		fill = pallet->highlight;
@@ -105,48 +98,32 @@ static void mask(const struct wg_base* const wg)
 		al_map_rgb(255, 0, 0));
 }
 
-static void hover_start(struct wg_base* const wg)
-{
-	struct text_entry* const text_entry = (const struct text_entry* const)wg;
-
-	if (text_entry->state == TEXT_ENTRY_IDLE)
-		text_entry->state = TEXT_ENTRY_HOVER;
-}
-
-static void hover_end(struct wg_base* const wg)
-{
-	struct text_entry* const text_entry = (const struct text_entry* const)wg;
-	
-	if (text_entry->state == TEXT_ENTRY_HOVER)
-		text_entry->state = TEXT_ENTRY_IDLE;
-}
-
 static void drag_start(struct wg_base* const wg)
 {
 	struct text_entry* const text_entry = (const struct text_entry* const)wg;
 	
-	text_entry->state = TEXT_ENTRY_ACTIVE;
+	text_entry->hud_state = HUD_ACTIVE;
 }
 
 static void left_click(struct wg_base* const wg)
 {
 	struct text_entry* const text_entry = (const struct text_entry* const)wg;
 
-	text_entry->state = TEXT_ENTRY_ACTIVE;
+	text_entry->hud_state = HUD_ACTIVE;
 }
 
 static void click_off(struct wg_base* const wg)
 {
 	struct text_entry* const text_entry = (const struct text_entry* const)wg;
 
-	text_entry->state = TEXT_ENTRY_IDLE;
+	text_entry->hud_state = HUD_IDLE;
 }
 
 static void event_handler(struct wg_base* const wg)
 {
 	struct text_entry* const text_entry = (const struct text_entry* const)wg;
 
-	if (text_entry->state != TEXT_ENTRY_ACTIVE)
+	if (text_entry->hud_state != HUD_ACTIVE)
 		return;
 
 	if (current_event.type == ALLEGRO_EVENT_KEY_CHAR)
@@ -231,8 +208,6 @@ const struct wg_jumptable_base text_entry_jumptable =
 	.event_handler = event_handler,
 
 	.left_click = left_click,
-	.hover_start = hover_start,
-	.hover_end = hover_end,
 	.drag_start = drag_start,
 	.click_off = click_off
 };
@@ -255,14 +230,12 @@ int text_entry_new(lua_State* L)
 
 	const size_t size = sizeof(struct text_entry) + sizeof(char) * (text_len + 1);
 
-	struct text_entry* text_entry = (struct text_entry*)wg_alloc_base(size, &text_entry_jumptable);
+	struct text_entry* text_entry = (struct text_entry*)wg_alloc_hud(size, &text_entry_jumptable);
 
 	strcpy_s(text_entry->place_holder, text_len + 1, text ? text : "Click to enter text.");
 
 	text_entry->input[0] = '\0';
 	text_entry->input_size = 0;
-	text_entry->state = TEXT_ENTRY_IDLE;
-	text_entry->pallet = &primary_pallet;
 
 	text_entry->half_width = 300 > text_entry->half_width ? 300 : text_entry->half_width;
 	text_entry->half_height = 20 > text_entry->half_height ? 20 : text_entry->half_height;

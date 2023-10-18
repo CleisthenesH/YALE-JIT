@@ -13,13 +13,7 @@
 
 struct button
 {
-	struct wg_base;
-	struct widget_pallet* pallet;
-
-	enum {
-		BUTTON_IDLE,
-		BUTTON_HOVER
-	} state;
+	struct wg_hud;
 
 	char text[];
 };
@@ -31,7 +25,7 @@ static void draw(const struct wg_base* const wg)
 
 	al_draw_filled_rounded_rectangle(-wg->half_width, -wg->half_height, wg->half_width, wg->half_height,
 		pallet->edge_radius, pallet->edge_radius,
-		button->state == BUTTON_IDLE ? pallet->main : pallet->highlight);
+		button->hud_state == HUD_IDLE ? pallet->main : pallet->highlight);
 
 	if (button->text)
 		al_draw_text(pallet->font, al_map_rgb_f(1, 1, 1),
@@ -52,25 +46,12 @@ static void mask(const struct wg_base* const wg)
 		al_map_rgb(255, 255, 255));
 }
 
-static void hover_start(struct wg_base* const wg)
-{
-	((struct button* const) wg)->state = BUTTON_HOVER;
-}
-
-static void hover_end(struct wg_base* const wg)
-{
-	((struct button* const)wg)->state = BUTTON_IDLE;
-}
-
-const struct wg_jumptable_base button_jumptable =
+const struct wg_jumptable_hud button_jumptable =
 {
 	.type = "button",
 		
 	.draw = draw,
 	.mask = mask,
-
-	.hover_start = hover_start,
-	.hover_end = hover_end,
 };
 
 int button_new(lua_State* L)
@@ -91,12 +72,9 @@ int button_new(lua_State* L)
 
 	const size_t size = sizeof(struct button) + sizeof(char) * (text_len+1);
 
-	struct button* button = (struct button*) wg_alloc_base( size, &button_jumptable);
+	struct button* button = (struct button*) wg_alloc_hud( size, &button_jumptable);
 
 	strcpy_s(button->text, text_len + 1, text ? text : "Placeholder");
-
-	button->pallet = &primary_pallet;
-	button->state = BUTTON_IDLE;
 
 	const double min_half_width = 8 + 0.5 * al_get_text_width(button->pallet->font, button->text);
 	const double min_half_height = 25;

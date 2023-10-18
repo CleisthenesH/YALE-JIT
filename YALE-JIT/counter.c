@@ -15,14 +15,13 @@
 
 struct counter
 {
-	struct wg_base;
-	struct widget_pallet* pallet;
+	struct wg_hud;
 
 	enum icon_id icon;
 	int value;
 };
 
-const struct wg_jumptable_base counter_jumptable;
+const struct wg_jumptable_hud counter_jumptable;
 
 static void draw(const struct wg_base* const wg)
 {
@@ -133,7 +132,7 @@ static int newindex(lua_State* L)
 	return -1;
 }
 
-const struct wg_jumptable_base counter_jumptable =
+const struct wg_jumptable_hud counter_jumptable =
 {
 	.type = "counter",
 
@@ -146,10 +145,9 @@ const struct wg_jumptable_base counter_jumptable =
 
 int counter_new(lua_State* L)
 {
-	struct counter* counter = (struct counter*)wg_alloc_base(sizeof(struct counter), &counter_jumptable);
+	struct counter* counter = (struct counter*)wg_alloc_hud(sizeof(struct counter), &counter_jumptable);
 
 	counter->value = 0;
-	counter->pallet = &primary_pallet;
 	counter->icon = ICON_ID_NULL;
 
 	if (lua_istable(L, -2))
