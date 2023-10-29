@@ -8,7 +8,7 @@
 --boot_file = "lua/HUD_TEST.lua"
 
 --video_adapter = 2
-windowed = true
+--windowed = true
 
 
 print("Config Complete")
