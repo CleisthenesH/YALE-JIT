@@ -229,6 +229,14 @@ void resource_manager_init()
 		font_table[i] = emily_huo_font(lua, font_names[i]);
 
 	lua_close(lua);
+
+	// TODO:
+	// One makes the text look nice the other the icons.
+	// al_set_new_bitmap_samples
+	if (1)
+		al_set_new_bitmap_flags(ALLEGRO_MIN_LINEAR | ALLEGRO_MAG_LINEAR | ALLEGRO_VIDEO_BITMAP | ALLEGRO_NO_PRESERVE_TEXTURE);
+	else
+		al_set_new_bitmap_flags(ALLEGRO_VIDEO_BITMAP | ALLEGRO_NO_PRESERVE_TEXTURE);
 }
 
 ALLEGRO_FONT* resource_manager_font(enum font_id id)

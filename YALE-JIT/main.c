@@ -154,40 +154,54 @@ static inline void lua_boot_file()
 // Config and create display
 static inline void create_display()
 {
-    ALLEGRO_MONITOR_INFO monitor_info;
-    ALLEGRO_DISPLAY_MODE display_mode;
+    int adapter = ALLEGRO_DEFAULT_DISPLAY_ADAPTER;
+    int display_flags = ALLEGRO_PROGRAMMABLE_PIPELINE | ALLEGRO_OPENGL;
 
-    al_set_new_display_flags(ALLEGRO_PROGRAMMABLE_PIPELINE | ALLEGRO_OPENGL | ALLEGRO_FULLSCREEN);
+    lua_getglobal(lua_state, "video_adapter");
+
+    if (lua_isnumber(lua_state, -1))
+    {
+        adapter = luaL_checkint(lua_state, -1);
+
+        if (adapter < 0 || adapter >= al_get_num_display_modes())
+            adapter = ALLEGRO_DEFAULT_DISPLAY_ADAPTER;
+
+        lua_pushnil(lua_state);
+        lua_setglobal(lua_state, "video_adapter");
+    }
+
+    lua_getglobal(lua_state, "windowed");
+
+    if (!lua_isnil(lua_state, -1))
+    {
+        lua_pushnil(lua_state);
+        lua_setglobal(lua_state, "windowed");
+    }
+    else
+        display_flags |= ALLEGRO_FULLSCREEN;
+
+    lua_pop(lua_state, 2);
+ 
+    al_set_new_display_flags(display_flags);
 
     al_set_new_display_option(ALLEGRO_DEPTH_SIZE, 32, ALLEGRO_SUGGEST);
     al_set_new_display_option(ALLEGRO_STENCIL_SIZE, 8, ALLEGRO_SUGGEST);
     al_set_new_display_option(ALLEGRO_SAMPLE_BUFFERS, 1, ALLEGRO_REQUIRE);
     al_set_new_display_option(ALLEGRO_SAMPLES, 16, ALLEGRO_REQUIRE);
 
-    // One makes the text look nice the other the icons.
-    // al_set_new_bitmap_samples
-    if (1)
-        al_set_new_bitmap_flags(ALLEGRO_MIN_LINEAR | ALLEGRO_MAG_LINEAR | ALLEGRO_VIDEO_BITMAP | ALLEGRO_NO_PRESERVE_TEXTURE);
-    else
-        al_set_new_bitmap_flags(ALLEGRO_VIDEO_BITMAP | ALLEGRO_NO_PRESERVE_TEXTURE);
+   ALLEGRO_DISPLAY_MODE display_mode;
 
-    // Will improve monitor implementation when lua is itegrated
-    al_get_monitor_info(0, &monitor_info);
-    al_set_new_display_adapter(0);
-    al_get_display_mode(al_get_num_display_modes() - 1, &display_mode);
+    al_set_new_display_adapter(adapter);
+    al_get_display_mode(adapter, &display_mode);
 
-    if (0)
-        display = al_create_display(
-            monitor_info.x2 - monitor_info.x1,
-            monitor_info.y2 - monitor_info.y1);
-    else
-        display = al_create_display(display_mode.width, display_mode.height);
+    display = al_create_display(display_mode.width, display_mode.height);
 
     al_set_render_state(ALLEGRO_ALPHA_TEST, 1);
     al_set_render_state(ALLEGRO_ALPHA_FUNCTION, ALLEGRO_RENDER_NOT_EQUAL);
     al_set_render_state(ALLEGRO_ALPHA_TEST_VALUE, 0);
 
-    if (!display) {
+    if (!display) 
+    {
         fprintf(stderr, "failed to create display!\n");
         return;
     }
