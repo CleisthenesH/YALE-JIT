@@ -358,10 +358,11 @@ static void tweener_enter_loop(struct wg_base_internal* wg, double loop_offset)
 /*          Zone and Piece Methods           */
 /*********************************************/
 
-// Managing three main callbacks
+// Managing four main callbacks
 //  moves:
 //  valid_move:
 //  invalid_move:
+//  manual_move:
 //
 //  Also a callback for a manual move from lua.
 
@@ -1585,6 +1586,18 @@ static int index(lua_State* L)
                 lua_pushcfunction(L, lookup[i].function);
                 return 1;
             }
+
+        // TODO: Improve
+        if (strcmp("x", key) == 0)
+        {
+            lua_pushnumber(L, wg->x);
+            return 1;
+        }
+        else if (strcmp("y", key) == 0)
+        {
+            lua_pushnumber(L, wg->y);
+            return 1;
+        }
 
         if (wg->class == WG_ZONE)
         {

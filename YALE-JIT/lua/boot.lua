@@ -34,9 +34,11 @@ end
 
 dofile("lua/board.lua")
 
-wood_counter  = counter{x=70,  y=70, icon=2206, value = 234}
-stone_counter = counter{x=70, y=190, icon=3455, value = 234}
-gold_counter  = counter{x=70, y=310, icon=2562, value = 234}
+wood_counter  = counter{x=70,  y=70, icon=2206, value = 0}
+stone_counter = counter{x=70, y=190, icon=3455, value = 0}
+gold_counter  = counter{x=70, y=310, icon=2562, value = 0}
+
+edit_button = button{x = 1400, y=800, text="Edit", left_click=enter_edit_mode}
 
 print("Boot Complete")
 

@@ -150,6 +150,11 @@ static int index(lua_State* L)
 			lua_pushstring(L, tile_to_string[tile->id]);
 			return 1;
 		}
+		else if (strcmp(key, "tile_id") == 0)
+		{
+			lua_pushinteger(L, tile->id);
+			return 1;
+		}
 	}
 
 	return -1;
@@ -172,6 +177,24 @@ static int newindex(lua_State* L)
 		else if (strcmp(key, "tile") == 0)
 		{
 			lua_toid(L, -1, tile);
+			lua_pop(L, 1);
+			return 0;
+		}
+		else if (strcmp(key, "tile_id") == 0)
+		{
+			if (!lua_isnumber(L, -1))
+			{
+				lua_pop(L, 1);
+				return 0;
+			}
+			
+			tile->id = (int) lua_tointeger(L, -1);
+
+			if (tile->id > TILE_CNT)
+				tile->id %= TILE_CNT;
+			else while (tile->id < 0)
+				tile->id += TILE_CNT;
+
 			lua_pop(L, 1);
 			return 0;
 		}
