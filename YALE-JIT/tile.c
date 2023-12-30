@@ -190,7 +190,7 @@ static int newindex(lua_State* L)
 			
 			tile->id = (int) lua_tointeger(L, -1);
 
-			if (tile->id > TILE_CNT)
+			if (tile->id >= TILE_CNT)
 				tile->id %= TILE_CNT;
 			else while (tile->id < 0)
 				tile->id += TILE_CNT;

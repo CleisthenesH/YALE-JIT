@@ -1540,7 +1540,7 @@ static int push_class(lua_State* L)
 // General widget garbage collection
 static int gc(lua_State* L)
 {
-    struct wg_base_internal* const wg = (struct wg_base_internal*)luaL_checkudata(L, 1, "wg_mt");
+    struct wg_base_internal* const wg = (struct wg_base_internal*)luaL_checkudata(L, 1, "widget_mt");
 
     if (wg->jumptable.base->gc)
         wg->jumptable.base->gc(downcast(wg));
@@ -1783,7 +1783,8 @@ static void widgets_init()
     lua_pushcfunction(lua_state, widgets_setmask);
     lua_setfield(lua_state, -2, "mask");
 
-    if (0)
+    // This makes widgets a weak table
+    if (1)
     {
         lua_pushstring(lua_state, "vk");
         lua_setfield(lua_state, -2, "__mode");
