@@ -1,4 +1,4 @@
-// Copyright 2023 Kieran W Harvie. All rights reserved.
+// Copyright 2023-2024 Kieran W Harvie. All rights reserved.
 // Use of this source code is governed by an MIT-style
 // license that can be found in the LICENSE file.
 
@@ -205,6 +205,12 @@ static inline void create_display()
         fprintf(stderr, "failed to create display!\n");
         return;
     }
+
+    lua_pushinteger(lua_state, al_get_display_width(display));
+    lua_setglobal(lua_state, "display_width");
+
+    lua_pushinteger(lua_state, al_get_display_height(display));
+    lua_setglobal(lua_state, "display_height");
 
 #ifdef EASY_BACKGROUND
     easy_background = al_create_bitmap(al_get_display_width(display) + 100, al_get_display_height(display) + 100);

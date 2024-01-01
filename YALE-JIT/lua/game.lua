@@ -1,4 +1,4 @@
--- Copyright 2023 Kieran W Harvie. All rights reserved.
+-- Copyright 2023-2024 Kieran W Harvie. All rights reserved.
 -- Use of this source code is governed by an MIT-style
 -- license that can be found in the LICENSE file.
 
@@ -32,17 +32,6 @@ function moves(piece,zone)
 	return widgets.filter(is_neighbour)
 end
 
-print("GAME HIT")
 dofile("lua/board.lua")
 
-function enter_game()
-	wood_counter  = counter{x=70,  y=70, icon=2206, value = 0}
-	stone_counter = counter{x=70, y=190, icon=3455, value = 0}
-	gold_counter  = counter{x=70, y=310, icon=2562, value = 0}
-
-	board_import("a")
-end
-
-enter_game()
-
---edit_button = button{x = 1400, y=800, text="Edit", left_click=enter_edit_mode}
+board_import("save/save.lua")

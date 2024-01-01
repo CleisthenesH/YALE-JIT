@@ -62,8 +62,12 @@ tiles = {
    tile{x=1181.0511776652,y=600,q=4,r=0,tile="hills"},
 }
 
-red_meeple = meeple{x=990.52558883258,y= 600,team="red"}
+red_meeple = meeple{x=1085.7883832489,y= 435,team="red"}
 blue_meeple = meeple{x=514.21161675114,y= 600,team="blue"}
 
-manual_move(red_meeple, get_tile(2, 0))
+manual_move(red_meeple, get_tile(4, -2))
 manual_move(blue_meeple, get_tile(-3, 0))
+
+wood_counter  = counter{x=70,  y=70, icon=2206, value = 0}
+stone_counter = counter{x=70, y=190, icon=3455, value = 0}
+gold_counter  = counter{x=70, y=310, icon=2562, value = 0}
