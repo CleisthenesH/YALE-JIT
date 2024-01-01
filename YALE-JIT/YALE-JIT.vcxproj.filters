@@ -27,6 +27,15 @@
     <None Include="lua\HUD_test.lua">
       <Filter>scripts</Filter>
     </None>
+    <None Include="save\save.lua">
+      <Filter>scripts\save</Filter>
+    </None>
+    <None Include="lua\edit.lua">
+      <Filter>scripts</Filter>
+    </None>
+    <None Include="lua\game.lua">
+      <Filter>scripts</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="thread_pool.c">
@@ -131,6 +140,9 @@
     </Filter>
     <Filter Include="widgets\HUD">
       <UniqueIdentifier>{7efb0f2e-fde6-45b9-829a-d0e13e395431}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="scripts\save">
+      <UniqueIdentifier>{33ca2a33-263b-4d05-adf9-c56290684ec3}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>

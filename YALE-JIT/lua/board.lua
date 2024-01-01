@@ -2,19 +2,7 @@
 -- Use of this source code is governed by an MIT-style
 -- license that can be found in the LICENSE file.
 
--- defines the board state and utility functions
-
-local function left_click(wg)
-	if edit_mode then
-		wg.tile_id = wg.tile_id + 1
-	end
-end
-
-local function right_click(wg)
-	if edit_mode then
-		wg.tile_id = wg.tile_id - 1
-	end
-end
+-- defines board utility functions
 
 function board_export(filename)
 	local file = io.open("save/save.lua","w")
@@ -40,19 +28,36 @@ function board_export(filename)
 	io.close()
 end
 
-function enter_edit_mode()
-	edit_mode = true
-	edit_button.left_click = exit_edit_mode
+function board_import(filename)
+	local file = io.open("save/save.lua","r")
 
-	save_button = button{x = edit_button.x, y = edit_button.y+ 64, text="Save"}
-	save_button.left_click = function(wg) board_export("save/save.lua") end
-end
+	if file then
+		dofile("save/save.lua")
+		io.close(file)	
+	else
+		local size = 50
 
-function exit_edit_mode()
-	edit_mode = nil
-	save_button = nil
-	collectgarbage()
-	edit_button.left_click = enter_edit_mode
+		tiles = {}
+
+		for q = -4,4 do
+			for r = -4,4 do	
+				if math.abs(q+r) < 5 then
+					local dx = 1.1*size*math.sqrt(3)*(q+0.5*r)
+					local dy = 1.1*size*1.5*r
+
+					 tiles[#tiles+1]= tile{q=q,r=r,
+						x=800+dx,y=600+dy,
+						tile = "hills"}
+				end
+			end
+		end
+
+		red_meeple = meeple{x=750, y=200, team = "red"}
+		blue_meeple = meeple{x=850, y=200, team = "blue"}
+
+		manual_move(red_meeple, get_tile(3,0))
+		manual_move(blue_meeple, get_tile(-3,0))
+	end
 end
 
 function get_tile(q,r)
@@ -61,37 +66,4 @@ function get_tile(q,r)
 	return #filter > 0 and filter[1]
 end
 
-local file = io.open("save/save.lua","r")
 
-if file then
-	dofile("save/save.lua")
-	io.close(file)	
-else
-	local size = 50
-
-	tiles = {}
-
-	for q = -4,4 do
-		for r = -4,4 do	
-			if math.abs(q+r) < 5 then
-				local dx = 1.1*size*math.sqrt(3)*(q+0.5*r)
-				local dy = 1.1*size*1.5*r
-
-				 tiles[#tiles+1]= tile{q=q,r=r,
-					x=800+dx,y=600+dy,
-					tile = "hills"}
-			end
-		end
-	end
-
-	red_meeple = meeple{x=750, y=200, team = "red"}
-	blue_meeple = meeple{x=850, y=200, team = "blue"}
-
-	manual_move(red_meeple, get_tile(3,0))
-	manual_move(blue_meeple, get_tile(-3,0))
-end
-
-for k, v in pairs(tiles) do
-	v.left_click = left_click
-	v.right_click = right_click
-end

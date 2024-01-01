@@ -141,12 +141,12 @@ static void queue_pop(struct wg_base_internal* const widget)
 {
     if (widget->next)
         widget->next->previous = widget->previous;
-    else
+    else if(queue_tail[widget->class] == widget)
         queue_tail[widget->class] = widget->previous;
 
     if (widget->previous)
         widget->previous->next = widget->next;
-    else
+    else if (queue_head[widget->class] == widget)
         queue_head[widget->class] = widget->next;
 }
 
@@ -630,7 +630,7 @@ static void call_lua(struct wg_base_internal* const wg, const char* key, struct 
 
     lua_getfenv(lua_state, -1);
     lua_getfield(lua_state, -1, key);
-
+    
     if (lua_isnil(lua_state, -1))
     {
         lua_pop(lua_state, 4);
@@ -1035,9 +1035,12 @@ static const double drag_threshold = 0.2;
 // Prevents current_hover, last_click, and current_drag becoming stale
 static void prevent_stale_pointers(struct wg_base_internal* const ptr)
 {
+    // WARNING: this function is only called in widget gc
+    //  at this location the weak references in widgets have been collected
+    //  hence I have disabled the callbacks, because they are currently intertwined with call_lua
     if (current_hover == ptr)
     {
-        call(ptr, hover_end);
+        //call(ptr, hover_end);
 
         widget_engine_state = ENGINE_STATE_IDLE;
         current_hover = NULL;
@@ -1045,14 +1048,14 @@ static void prevent_stale_pointers(struct wg_base_internal* const ptr)
 
     if (last_click == ptr)
     {
-        call(ptr, click_off)
+        //call(ptr, click_off)
 
         last_click = NULL;
     }
 
     if (current_drop == ptr)
     {
-        call(ptr, drag_end_no_drop)
+        //call(ptr, drag_end_no_drop)
 
         widget_engine_state = ENGINE_STATE_IDLE;
         current_drop = NULL;
@@ -1540,18 +1543,22 @@ static int push_class(lua_State* L)
 // General widget garbage collection
 static int gc(lua_State* L)
 {
+    // WARNING: __gc is called before freeing udata but after removing from weak references
+    // In particular, the entry is already removed from the "widgets" global table.
+    // I've removed function calls from "prevent stale points" for this reasion.
+    // This means a hover_start can be called without an accompaning hover_end.
     struct wg_base_internal* const wg = (struct wg_base_internal*)luaL_checkudata(L, 1, "widget_mt");
 
     if (wg->jumptable.base->gc)
         wg->jumptable.base->gc(downcast(wg));
-
-    queue_pop(wg);
 
     if (wg->class == WG_ZONE)
         free(((struct wg_zone_internal* const)wg)->pieces);
 
     // Make sure we don't get stale pointers
     prevent_stale_pointers(wg);
+
+    queue_pop(wg);
 
     return 0;
 }
@@ -1764,6 +1771,19 @@ static int widgets_filter(lua_State* L)
     return 1;
 }
 
+static int widgets_remove(lua_State* L)
+{
+    struct wg_base_internal* const wg = (struct wg_base_internal*)luaL_checkudata(L, 1, "widget_mt");
+
+    lua_pushlightuserdata(L, wg);
+    lua_pushnil(L);
+    lua_settable(L, -3);
+
+    queue_pop(wg);
+
+    return 0;
+}
+
 static void widgets_init()
 {
     // Make a weak global table to contain the widgets
@@ -1782,6 +1802,9 @@ static void widgets_init()
 
     lua_pushcfunction(lua_state, widgets_setmask);
     lua_setfield(lua_state, -2, "mask");
+
+    lua_pushcfunction(lua_state, widgets_remove);
+    lua_setfield(lua_state, -2, "remove");
 
     // This makes widgets a weak table
     if (1)
@@ -1998,7 +2021,6 @@ struct wg_piece* wg_alloc_piece(size_t size, struct wg_jumptable_piece* jumptabl
     return (struct wg_piece*)downcast((struct wg_base_internal*)wg);
 }
 
-// TODO: remove?
 struct wg_hud* wg_alloc_hud(size_t size, struct wg_jumptable_hud* jumptable)
 {
     struct wg_hud_internal* wg = (struct wg_hud_internal*)wg_alloc(WG_HUD, size);

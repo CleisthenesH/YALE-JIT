@@ -4,41 +4,20 @@
 
 -- Runs once after all inializations have ran but before the main loop.
 
-function moves(piece,zone)
-	widgets.mask(true,false,false)
+local function exit_main_menu()
+	widgets.remove(play_button)
+	play_button = nil
 
-	local output = {}
+	widgets.remove(edit_button)
+	edit_button = nil
 
-	if zone == nil or zone.type ~= type_tile then
-		return widgets.filter(function(wg) return wg.type == type_tile and #wg.pieces == 0 end)
-	end
-
-	local q = zone.q
-	local r = zone.r
-
-	local function is_neighbour(wg)
-		if wg.type ~= type_tile or #wg.pieces > 0 then
-			return false
-		end
-
-		local dq = wg.q - q
-		local dr = wg.r - r
-
-		return math.abs(dr+dq) <= 1 
-			and math.abs(dr) <= 1 
-			and math.abs(dq) <= 1
-	end
-
-	return widgets.filter(is_neighbour)
+	widgets.remove(hud_button)
+	hud_button = nil
 end
 
-dofile("lua/board.lua")
-
-wood_counter  = counter{x=70,  y=70, icon=2206, value = 0}
-stone_counter = counter{x=70, y=190, icon=3455, value = 0}
-gold_counter  = counter{x=70, y=310, icon=2562, value = 0}
-
-edit_button = button{x = 1400, y=800, text="Edit", left_click=enter_edit_mode}
+play_button = button{x=500,y=500,text = "Play",left_click = function(wg) exit_main_menu() dofile("lua/game.lua") end}
+edit_button = button{x=500,y=600,text = "Edit",left_click = function(wg) exit_main_menu() dofile("lua/edit.lua") end}
+hud_button = button{x=500,y=700,text = "HUD test",left_click = function(wg) exit_main_menu() dofile("lua/HUD_test.lua") end}
 
 print("Boot Complete")
 
