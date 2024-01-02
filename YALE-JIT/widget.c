@@ -1317,8 +1317,11 @@ void widget_engine_update()
     {
         struct keyframe buffer = drag_release;
 
-        buffer.dx = mouse_x - drag_offset_x;
-        buffer.dy = mouse_y - drag_offset_y;
+        const double tx = (mouse_x - drag_offset_x)/camera.sx;
+        const double ty = (mouse_y - drag_offset_y)/camera.sy;
+
+        buffer.dx = cos(camera.a)*tx+sin(camera.a)*ty;
+        buffer.dy = -sin(camera.a)*tx+cos(camera.a)*ty;
 
         tweener_set(current_hover, &buffer);
 

@@ -20,6 +20,6 @@ end
 dofile("lua/board.lua")
 
 camera_set{x = display_width*0.5, y = display_height*0.5}
---camera_push{x = display_width*0.5, y = display_height*0.5,a=1,t=2}
+camera_push{x = display_width*0.5, y = display_height*0.5,a=1,t=2}
 
 board_import("save/save.lua")
