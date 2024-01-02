@@ -48,7 +48,7 @@ function default_board()
 				local dy = 1.1*size*1.5*r
 
 				 tiles[q][r]= tile{q=q,r=r,
-					x=800+dx,y=600+dy,
+					x=dx,y=dy,
 					tile = "hills"}
 			end
 		end
@@ -68,7 +68,7 @@ end
 function board_import(filename)
 	local file = io.open(filename,"r")
 
-	if true and file then
+	if file then
 		dofile(filename)
 		io.close(file)	
 	else
@@ -98,7 +98,8 @@ function tiles_filter(funct)
 
 	for q = -4,4 do
 		for r = -4,4 do	
-			if  math.abs(q+r) <= 4 and funct(tiles[q][r]) then
+			if  math.abs(q+r) <= 4 
+				and funct(tiles[q][r]) then
 				output[#output+1] = tiles[q][r]
 			end
 		end
@@ -112,7 +113,8 @@ function tiles_neighbours(q,r)
 
 	for dq = -1,1 do
 		for dr = -1,1 do	
-			if math.abs(dq+dr) <= 1 and math.abs(r+dr+q+dq) <= 4 then
+			if math.abs(dq+dr) <= 1 
+				and math.abs(r+dr+q+dq) <= 4 then
 				output[#output+1] = tiles[q+dq][r+dr]
 			end
 		end

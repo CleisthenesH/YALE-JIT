@@ -1,4 +1,4 @@
-// Copyright 2023 Kieran W Harvie. All rights reserved.
+// Copyright 2023-2024 Kieran W Harvie. All rights reserved.
 // Use of this source code is governed by an MIT-style
 // license that can be found in the LICENSE file.
 
@@ -810,12 +810,12 @@ static void camera_compose_transform(ALLEGRO_TRANSFORM* const trans, const doubl
     const double blend_y = camera.y * blend;
     const double blend_sx = camera.sx * blend + (1 - blend);
     const double blend_sy = camera.sy * blend + (1 - blend);
-    const double blend_t = camera.t * blend;
+    const double blend_a = camera.a * blend;
 
     al_build_transform(&buffer,
         blend_x, blend_y,
         blend_sx, blend_sy,
-        blend_t);
+        blend_a);
 
     al_compose_transform(trans, &buffer);
 }
@@ -1540,6 +1540,35 @@ static int push_class(lua_State* L)
     return 1;
 }
 
+// Push camera
+static int camera_push(lua_State* L)
+{
+    luaL_checktype(L, -1, LUA_TTABLE);
+
+    struct keyframe keyframe;
+    keyframe_default(&keyframe);
+
+    lua_getkeyframe(-1, &keyframe);
+
+    tweener_push(&camera, &keyframe);
+    return 0;
+}
+
+// Set camera
+static int camera_set(lua_State* L)
+{
+    luaL_checktype(L, -1, LUA_TTABLE);
+
+    struct keyframe keyframe;
+
+    keyframe_default(&keyframe);
+    lua_getkeyframe(-1, &keyframe);
+
+    tweener_set(&camera, &keyframe);
+
+    return 0;
+}
+
 // General widget garbage collection
 static int gc(lua_State* L)
 {
@@ -1877,9 +1906,16 @@ void widget_engine_init()
     // Camera
     keyframe_default(get_keyframe(&camera));
     tweener_init(&camera);
+    lua_pushcfunction(lua_state, camera_push);
+    lua_setglobal(lua_state, "camera_push");
 
+    lua_pushcfunction(lua_state, camera_set);
+    lua_setglobal(lua_state, "camera_set");
+
+    //
     zone_and_piece_init();
 
+    //
     widgets_init();
 
     lua_register(lua_state, "manual_move", manual_move);
