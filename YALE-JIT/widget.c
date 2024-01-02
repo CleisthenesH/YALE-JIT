@@ -1035,7 +1035,7 @@ static const double drag_threshold = 0.2;
 // Prevents current_hover, last_click, and current_drag becoming stale
 static void prevent_stale_pointers(struct wg_base_internal* const ptr)
 {
-    // WARNING: this function is only called in widget gc
+    // WARNING: this function is called in widget gc
     //  at this location the weak references in widgets have been collected
     //  hence I have disabled the callbacks, because they are currently intertwined with call_lua
     if (current_hover == ptr)
@@ -1812,6 +1812,7 @@ static int widgets_remove(lua_State* L)
     lua_settable(L, -3);
 
     queue_pop(wg);
+    prevent_stale_pointers(wg);
 
     return 0;
 }
