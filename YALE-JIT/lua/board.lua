@@ -8,14 +8,15 @@ function board_export(filename)
 	local file = io.open("save/save.lua","w")
 	io.output(file)
 
-	io.write("tiles = {".. string.char(10))
+	io.write("tiles = {[-4]={},[-3]={},[-2]={},[-1]={},[0]={},{},{},{},{}}".. string.char(10))
 	for k, v in pairs(widgets.filter(function(wg) return wg.type == type_tile end)) do
-		io.write("   tile{x=" .. v.x .. ",y=" .. v.y)
+		io.write("tiles[" .. v.q .. "][" .. v.r .. "] = ")
+		io.write("tile{x=" .. v.x .. ",y=" .. v.y)
 		io.write(",q=" .. v.q .. ",r=" .. v.r)
-		io.write([[,tile="]] .. v.tile .. [["},]] .. string.char(10))
+		io.write([[,tile="]] .. v.tile .. [["}]] .. string.char(10))
 	end
 
-	io.write("}".. string.char(10))
+	io.write(string.char(10))
 	
 	io.write(string.char(10))
 	io.write("red_meeple = meeple{x=" .. red_meeple.x .. ",y= " .. red_meeple.y ..[[,team="red"}]]..string.char(10))
@@ -39,12 +40,14 @@ function default_board()
 	tiles = {}
 
 	for q = -4,4 do
+		tiles[q] = {}
+
 		for r = -4,4 do	
 			if math.abs(q+r) < 5 then
 				local dx = 1.1*size*math.sqrt(3)*(q+0.5*r)
 				local dy = 1.1*size*1.5*r
 
-				 tiles[#tiles+1]= tile{q=q,r=r,
+				 tiles[q][r]= tile{q=q,r=r,
 					x=800+dx,y=600+dy,
 					tile = "hills"}
 			end
@@ -65,7 +68,7 @@ end
 function board_import(filename)
 	local file = io.open(filename,"r")
 
-	if file then
+	if true and file then
 		dofile(filename)
 		io.close(file)	
 	else
@@ -74,9 +77,47 @@ function board_import(filename)
 end
 
 function get_tile(q,r)
-	local filter = widgets.filter(function(wg) return wg.type == type_tile and wg.q == q and wg.r == r end)
-
-	return #filter > 0 and filter[1]
+	return tiles[q][r]
 end
 
+function tiles_flatten()
+	local output = {}
+	for q = -4,4 do
+		for r = -4,4 do	
+			if math.abs(q+r) <= 4 then
+				output[#output+1] = tiles[q][r]
+			end
+		end
+	end
+
+	return output
+end
+
+function tiles_filter(funct)
+	local output = {}
+
+	for q = -4,4 do
+		for r = -4,4 do	
+			if  math.abs(q+r) <= 4 and funct(tiles[q][r]) then
+				output[#output+1] = tiles[q][r]
+			end
+		end
+	end
+
+	return output	
+end
+
+function tiles_neighbours(q,r)
+	local output = {}
+
+	for dq = -1,1 do
+		for dr = -1,1 do	
+			if math.abs(dq+dr) <= 1 and math.abs(r+dr+q+dq) <= 4 then
+				output[#output+1] = tiles[q+dq][r+dr]
+			end
+		end
+	end
+
+	return output
+end
 

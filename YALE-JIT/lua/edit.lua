@@ -10,4 +10,4 @@ function exit_edit_mode()
 end
 
 save_button = button{x = display_width - 64, y = display_height - 32, text="Save"}
-save_button.left_click = function(wg) board_export("save/save.lua") end
+save_button.left_click = function(wg) return board_export("save/save.lua") end
