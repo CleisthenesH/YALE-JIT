@@ -19,6 +19,6 @@ play_button = button{x=display_width*0.5,y=500,text = "Play",left_click = functi
 edit_button = button{x=display_width*0.5,y=600,text = "Edit",left_click = function(wg) exit_main_menu() return dofile("lua/edit.lua") end}
 hud_button = button{x=display_width*0.5,y=700,text = "HUD test",left_click = function(wg) exit_main_menu() return dofile("lua/HUD_test.lua") end}
 
-play_button:left_click()
+--play_button:left_click()
 print("Boot Complete")
 

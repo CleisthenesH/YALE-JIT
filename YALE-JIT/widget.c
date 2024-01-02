@@ -627,6 +627,13 @@ static void call_lua(struct wg_base_internal* const wg, const char* key, struct 
     lua_getglobal(lua_state, "widgets");
     lua_pushlightuserdata(lua_state, wg);
     lua_gettable(lua_state, -2);
+    
+    // In the end this might be removable, keeping for now.
+    if (lua_isnil(lua_state, -1))
+    {
+        lua_pop(lua_state, 3);
+        return;
+    }
 
     lua_getfenv(lua_state, -1);
     lua_getfield(lua_state, -1, key);
@@ -777,22 +784,21 @@ static void call_drag_end_drop(struct wg_base_internal* const wg, const char* ke
 
 #define call(widget,method) \
     do{ \
-        call_lua(widget, #method, NULL);\
-        \
         call_hover_start(widget, #method);\
         call_hover_end(widget, #method);\
         if((widget)->jumptable.base-> ## method)\
-        (widget)->jumptable.base-> ## method(downcast(widget)); \
+			(widget)->jumptable.base-> ## method(downcast(widget)); \
+        call_lua(widget, #method, NULL);\
     }while(0); 
 
 #define call_2(widget,method,obj) \
     do{ \
-        call_lua(widget, #method, obj);\
         call_drop_start(widget, #method,obj);\
         call_drop_end(widget, #method,obj);\
 		call_drag_end_drop(widget, #method, obj);\
         if((widget)->jumptable.base-> ## method)\
-        (widget)->jumptable.base-> ## method(downcast(widget),downcast(obj)); \
+			(widget)->jumptable.base-> ## method(downcast(widget),downcast(obj)); \
+        call_lua(widget, #method, obj);\
      }while(0); 
 
 
@@ -1425,7 +1431,8 @@ void widget_engine_event_handler()
         {
         case ENGINE_STATE_PRE_DRAG_THRESHOLD:
             call(current_hover, left_click);
-            call(current_hover, left_click_end);
+            if(current_hover)
+                call(current_hover, left_click_end);
 
             // This means hover_start can be called twice without a hover_end
             // Not commited to it (should filter for existance of drag_start?)
@@ -1454,7 +1461,8 @@ void widget_engine_event_handler()
             if (current_drop)
             {
                 call_2(current_drop, drag_end_drop, current_hover);
-                call(current_hover, drag_end_no_drop);
+                if(current_hover)
+                    call(current_hover, drag_end_no_drop);
             }
             else
                 call(current_hover, drag_end_no_drop);
