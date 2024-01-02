@@ -114,7 +114,10 @@ function tiles_neighbours(q,r)
 	for dq = -1,1 do
 		for dr = -1,1 do	
 			if math.abs(dq+dr) <= 1 
+				and math.abs(r+dr) <= 4
+				and math.abs(q+dq) <= 4
 				and math.abs(r+dr+q+dq) <= 4 then
+				print(" ", q+dq,r+dr)
 				output[#output+1] = tiles[q+dq][r+dr]
 			end
 		end
