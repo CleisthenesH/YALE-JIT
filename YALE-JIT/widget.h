@@ -1,4 +1,4 @@
-// Copyright 2023 Kieran W Harvie. All rights reserved.
+// Copyright 2023-2024 Kieran W Harvie. All rights reserved.
 // Use of this source code is governed by an MIT-style
 // license that can be found in the LICENSE file.
 #pragma once
@@ -141,6 +141,7 @@ struct widget_pallet primary_pallet, secondary_pallet;
 /*********************************************/
 
 struct wg_base* check_widget_lua(int, const struct wg_jumptable_base* const);
+void widget_screen_to_local(const struct wg_base* const wg, double* x, double* y);
 
 // TODO: remove
 void stack_dump(struct lua_State*);

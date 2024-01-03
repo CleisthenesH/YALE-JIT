@@ -1,4 +1,4 @@
--- Copyright 2023 Kieran W Harvie. All rights reserved.
+-- Copyright 2023-2024 Kieran W Harvie. All rights reserved.
 -- Use of this source code is governed by an MIT-style
 -- license that can be found in the LICENSE file.
 
@@ -6,11 +6,12 @@
 
 print("HUD_test")
 
-test_button = button			{x=600, y= 50, text="TEST TEXT"}
-test_text_entry = text_entry	{x=600, y=150, text="TEST TEXT"}
-test_counter = counter			{x=600, y=250, icon=2206, value = 234}
+test_button = button			{x=display_width*0.5, y= 64, text="TEST TEXT"}
+test_text_entry = text_entry	{x=display_width*0.5, y=128, text="TEST TEXT"}
+test_counter = counter			{x=display_width*0.5, y=220, icon=2206, value = 234}
+test_slider = slider			{x=display_width*0.5, y=296, progress = 0.5}
 
 function test_button:left_click()
-	test_counter:add(1)
+	test_counter:set(test_slider.value)
 end
 

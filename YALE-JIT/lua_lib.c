@@ -1,4 +1,4 @@
-// Copyright 2023 Kieran W Harvie. All rights reserved.
+// Copyright 2023-2024 Kieran W Harvie. All rights reserved.
 // Use of this source code is governed by an MIT-style
 // license that can be found in the LICENSE file.
 
@@ -18,6 +18,9 @@ extern const struct wg_jumptable_base counter_jumptable;
 
 extern int text_entry_new(lua_State*);
 extern const struct wg_jumptable_base text_entry_jumptable;
+
+extern int slider_new(lua_State*);
+extern const struct wg_jumptable_base slider_jumptable;
 
 extern int tile_new(lua_State*);
 extern const struct wg_jumptable_zone tile_jumptable;
@@ -78,6 +81,10 @@ void lua_openL_misc(lua_State* L)
 	lua_register(L, "text_entry", text_entry_new);
 	lua_pushlightuserdata(L, &text_entry_jumptable);
 	lua_setglobal(L, "type_text_entry");
+
+	lua_register(L, "slider", slider_new);
+	lua_pushlightuserdata(L, &slider_jumptable);
+	lua_setglobal(L, "type_slider");
 
 	lua_register(L, "tile", tile_new);
 	lua_pushlightuserdata(L, &tile_jumptable);

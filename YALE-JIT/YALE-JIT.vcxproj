@@ -208,6 +208,7 @@
     <ClCompile Include="particle.c" />
     <ClCompile Include="resource_manager.c" />
     <ClCompile Include="scheduler.c" />
+    <ClCompile Include="slider.c" />
     <ClCompile Include="text_entry.c" />
     <ClCompile Include="thread_pool.c" />
     <ClCompile Include="tile.c" />

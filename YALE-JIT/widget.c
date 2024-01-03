@@ -1354,7 +1354,7 @@ struct work_queue* widget_engine_widget_work()
 				work_queue_push(work_queue,tweener_blend,widget);
 
 				if(widget->jumptable.base->update)
-					work_queue_push(work_queue, widget->jumptable.base->update, widget);
+					work_queue_push(work_queue, widget->jumptable.base->update, downcast(widget));
 			}
 
     return work_queue;

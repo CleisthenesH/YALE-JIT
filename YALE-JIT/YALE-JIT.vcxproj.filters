@@ -80,6 +80,9 @@
     <ClCompile Include="text_entry.c">
       <Filter>widgets\HUD</Filter>
     </ClCompile>
+    <ClCompile Include="slider.c">
+      <Filter>widgets\HUD</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="thread_pool.h">
