@@ -2029,7 +2029,8 @@ static struct wg_base_internal* wg_alloc(enum wg_class class, size_t size)
     else
     {
         lua_newtable(lua_state);
-        lua_setfenv(lua_state, -2);
+        lua_pushvalue(lua_state, -1);
+        lua_setfenv(lua_state, -3);
     }
 
     tweener_init(widget);
