@@ -22,6 +22,9 @@ extern const struct wg_jumptable_base text_entry_jumptable;
 extern int slider_new(lua_State*);
 extern const struct wg_jumptable_base slider_jumptable;
 
+extern int tile_selector_new(lua_State*);
+extern const struct wg_jumptable_zone tile_selector_jumptable;
+
 extern int tile_new(lua_State*);
 extern const struct wg_jumptable_zone tile_jumptable;
 
@@ -89,6 +92,10 @@ void lua_openL_misc(lua_State* L)
 	lua_register(L, "tile", tile_new);
 	lua_pushlightuserdata(L, &tile_jumptable);
 	lua_setglobal(L, "type_tile");
+
+	lua_register(L, "tile_selector", tile_selector_new);
+	lua_pushlightuserdata(L, &tile_selector_jumptable);
+	lua_setglobal(L, "tile_selector_tile");
 
 	lua_register(L, "meeple", meeple_new);
 	lua_pushlightuserdata(L, &meeple_jumptable);

@@ -83,6 +83,9 @@
     <ClCompile Include="slider.c">
       <Filter>widgets\HUD</Filter>
     </ClCompile>
+    <ClCompile Include="tile_selector.c">
+      <Filter>widgets\HUD</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="thread_pool.h">

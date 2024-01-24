@@ -212,6 +212,7 @@
     <ClCompile Include="text_entry.c" />
     <ClCompile Include="thread_pool.c" />
     <ClCompile Include="tile.c" />
+    <ClCompile Include="tile_selector.c" />
     <ClCompile Include="widget.c" />
   </ItemGroup>
   <ItemGroup>
