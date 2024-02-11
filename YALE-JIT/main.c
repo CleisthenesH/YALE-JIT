@@ -12,6 +12,7 @@
 #include <allegro5/allegro_ttf.h>
 #include <allegro5/allegro_color.h>
 #include <allegro5/allegro_opengl.h>
+#include <allegro5/allegro_native_dialog.h>
 
 #include <lua.h>
 #include <lauxlib.h>
@@ -25,7 +26,6 @@
 #include "thread_pool.h"
 void thread_pool_init(size_t);
 void thread_pool_destroy();
-
 
 // Widget Interface includes
 void widget_engine_init();
@@ -292,6 +292,12 @@ static inline int allegro_init()
     // Initalize the mouse allegro
     if (!al_install_mouse()) {
         fprintf(stderr, "failed to initialize al_install_mouse!\n");
+        return 0;
+    }
+
+    // Initalize the mouse allegro
+    if (!al_init_native_dialog_addon()) {
+        fprintf(stderr, "failed to initialize al_init_native_dialog_addon!\n");
         return 0;
     }
 
