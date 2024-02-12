@@ -59,12 +59,6 @@
     <ClCompile Include="material.c">
       <Filter>core\widget\components</Filter>
     </ClCompile>
-    <ClCompile Include="tile.c">
-      <Filter>widgets</Filter>
-    </ClCompile>
-    <ClCompile Include="meeple.c">
-      <Filter>widgets</Filter>
-    </ClCompile>
     <ClCompile Include="scheduler.c">
       <Filter>core\scheduler</Filter>
     </ClCompile>
@@ -83,8 +77,17 @@
     <ClCompile Include="slider.c">
       <Filter>widgets\HUD</Filter>
     </ClCompile>
+    <ClCompile Include="meeple.c">
+      <Filter>widgets\meeple_tile</Filter>
+    </ClCompile>
+    <ClCompile Include="tile.c">
+      <Filter>widgets\meeple_tile</Filter>
+    </ClCompile>
     <ClCompile Include="tile_selector.c">
-      <Filter>widgets\HUD</Filter>
+      <Filter>widgets\meeple_tile</Filter>
+    </ClCompile>
+    <ClCompile Include="meeple_tile_utility.c">
+      <Filter>widgets\meeple_tile</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -103,14 +106,14 @@
     <ClInclude Include="material.h">
       <Filter>core\widget\components</Filter>
     </ClInclude>
-    <ClInclude Include="meeple_tile_utility.h">
-      <Filter>widgets</Filter>
-    </ClInclude>
     <ClInclude Include="scheduler.h">
       <Filter>core\scheduler</Filter>
     </ClInclude>
     <ClInclude Include="particle.h">
       <Filter>core\particle</Filter>
+    </ClInclude>
+    <ClInclude Include="meeple_tile_utility.h">
+      <Filter>widgets\meeple_tile</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -149,6 +152,9 @@
     </Filter>
     <Filter Include="scripts\save">
       <UniqueIdentifier>{33ca2a33-263b-4d05-adf9-c56290684ec3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="widgets\meeple_tile">
+      <UniqueIdentifier>{a5c67bf3-ff8a-49e5-ba6c-5af7ef699323}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>

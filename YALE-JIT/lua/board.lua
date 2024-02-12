@@ -5,7 +5,7 @@
 -- defines board utility functions
 
 function board_export(filename)
-	local file = io.open("save/save.lua","w")
+	local file = io.open(filename,"w")
 	io.output(file)
 
 	io.write("tiles = {[-4]={},[-3]={},[-2]={},[-1]={},[0]={},{},{},{},{}}".. string.char(10))

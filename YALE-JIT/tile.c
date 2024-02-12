@@ -1,4 +1,4 @@
-// Copyright 2023 Kieran W Harvie. All rights reserved.
+// Copyright 2023-2024 Kieran W Harvie. All rights reserved.
 // Use of this source code is governed by an MIT-style
 // license that can be found in the LICENSE file.
 
@@ -17,34 +17,6 @@ struct tile
 	struct wg_zone;
 	enum TEAMS team;
 	enum tile_id id;
-};
-
-static const char* tile_to_string[] = {
-	"empty",
-	"bridge",
-	"camp",
-	"castle",
-	"city",
-	"dungeon",
-	"farm",
-	"fort",
-	"hills",
-	"lake",
-	"mine",
-	"monolith",
-	"mountains",
-	"oak",
-	"oaks",
-	"pine",
-	"pines",
-	"poi",
-	"quest",
-	"ruins",
-	"shipwreck",
-	"skull",
-	"swamp",
-	"tower",
-	"town"
 };
 
 static inline enum TILE_PALLET state_to_pallet(struct wg_zone* zone)
@@ -92,40 +64,6 @@ static void mask(const struct wg_base* const wg)
 		0);
 }
 
-// 
-static void lua_toteam(lua_State* L, int idx, struct tile* tile)
-{
-	if (lua_type(L, idx) == LUA_TSTRING)
-	{
-		const char* team_name = lua_tostring(L, idx);
-
-		if (strcmp(team_name, "red") == 0)
-			tile->team = TEAM_RED;
-		else if (strcmp(team_name, "blue") == 0)
-			tile->team = TEAM_BLUE;
-
-	}
-	lua_pop(L, 1);
-}
-
-// 
-static void lua_toid(lua_State* L, int idx, struct tile* tile)
-{
-	if (lua_type(L, idx) == LUA_TSTRING)
-	{
-		const char* tile_id = lua_tostring(L, idx);
-
-		for (size_t i = 0; i < TILE_CNT; i++)
-			if (strcmp(tile_id, tile_to_string[i]) == 0)
-			{
-				tile->id = i;
-				break;
-			}
-	}
-
-	lua_pop(L, 1);
-}
-
 static int index(lua_State* L)
 {
 	struct tile* const tile = (struct tile* const) check_widget_lua(-2, &tile_jumptable);
@@ -170,13 +108,13 @@ static int newindex(lua_State* L)
 
 		if (strcmp(key, "team") == 0)
 		{
-			lua_toteam(L, -1, tile);
+			tile->team = lua_toteam(L, -1);
 			lua_pop(L, 1);
 			return 0;
 		}
 		else if (strcmp(key, "tile") == 0)
 		{
-			lua_toid(L, -1, tile);
+			tile->id = lua_toid(L, -1);
 			lua_pop(L, 1);
 			return 0;
 		}
@@ -227,10 +165,10 @@ int tile_new(lua_State* L)
 	if (lua_istable(L, -2))
 	{
 		lua_getfield(L, -2, "team");
-		lua_toteam(L, -1, tile);
+		tile->team = lua_toteam(L, -1);
 
 		lua_getfield(L, -2, "tile");
-		lua_toid(L, -1, tile);
+		tile->id = lua_toid(L, -1);
 	}
 
 	tile->half_width = 50;

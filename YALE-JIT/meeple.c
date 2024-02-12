@@ -1,4 +1,4 @@
-// Copyright 2023 Kieran W Harvie. All rights reserved.
+// Copyright 2023-2024 Kieran W Harvie. All rights reserved.
 // Use of this source code is governed by an MIT-style
 // license that can be found in the LICENSE file.
 
@@ -68,22 +68,6 @@ static int index(lua_State* L)
 	return -1;
 }
 
-// 
-static void lua_toteam(lua_State* L, int idx, struct meeple* meeple)
-{
-	if (lua_type(L, idx) == LUA_TSTRING)
-	{
-		const char* team_name = lua_tostring(L, idx);
-
-		if (strcmp(team_name, "red") == 0)
-			meeple->team = TEAM_RED;
-		else if (strcmp(team_name, "blue") == 0)
-			meeple->team = TEAM_BLUE;
-
-	}
-	lua_pop(L, 1);
-}
-
 const struct wg_jumptable_piece meeple_jumptable =
 {
 	.type = "meeple",
@@ -107,7 +91,7 @@ int meeple_new(lua_State* L)
 	if (lua_istable(L, -2))
 	{
 		lua_getfield(L, -2, "team");
-		lua_toteam(L, -1, meeple);
+		meeple->team = lua_toteam(L, -1);
 	}
 
 	return 1;

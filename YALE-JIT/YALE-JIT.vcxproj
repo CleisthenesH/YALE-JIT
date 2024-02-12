@@ -205,6 +205,7 @@
     <ClCompile Include="lua_lib.c" />
     <ClCompile Include="material.c" />
     <ClCompile Include="meeple.c" />
+    <ClCompile Include="meeple_tile_utility.c" />
     <ClCompile Include="particle.c" />
     <ClCompile Include="resource_manager.c" />
     <ClCompile Include="scheduler.c" />

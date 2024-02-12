@@ -2,8 +2,11 @@
 // Use of this source code is governed by an MIT-style
 // license that can be found in the LICENSE file.
 
+// In this implementation moving your mouse onto the selector to where a tile was doesn't always hover that triangle.
+
 #include "widget.h"
 #include "resource_manager.h"
+#include "meeple_tile_utility.h"
 
 #include <lua.h>
 #include <math.h>
@@ -26,6 +29,8 @@ struct tile_selector {
 
 	float r;
 };
+
+const struct wg_jumptable_hud tile_selector_jumptable;
 
 static inline double draw_tile(struct tile_selector* selector, double x, int i, double r)
 {
@@ -138,6 +143,76 @@ static void update(struct wg_base* const wg)
 	}
 }
 
+static int index(lua_State* L)
+{
+	struct tile_selector* const selector = (struct tile_selector* const)check_widget_lua(-2, &tile_selector_jumptable);
+
+	if (lua_type(L, -1) == LUA_TSTRING)
+	{
+		const char* key = lua_tostring(L, -1);
+
+		if (strcmp(key, "selection") == 0)
+		{
+			lua_pushstring(L, tile_to_string[selector->selection]);
+			return 1;
+		}
+		else if (strcmp(key, "selection_id") == 0)
+		{
+			lua_pushinteger(L, selector->selection);
+			return 1;
+		}
+		else if (strcmp(key, "hover") == 0)
+		{
+			lua_pushstring(L, tile_to_string[selector->hover]);
+			return 1;
+		}
+		else if (strcmp(key, "hover_id") == 0)
+		{
+			lua_pushinteger(L, selector->hover);
+			return 1;
+		}
+	}
+
+	return -1;
+}
+
+static int newindex(lua_State* L)
+{
+	struct tile_selector* const selector = (struct tile_selector* const)check_widget_lua(-3, &tile_selector_jumptable);
+
+	if (lua_type(L, -2) == LUA_TSTRING)
+	{
+		const char* key = luaL_checkstring(L, -2);
+
+		if (strcmp(key, "selection") == 0)
+		{
+			selector->selection = lua_toid(L, -1);
+			lua_pop(L, 1);
+			return 0;
+		}
+		else if (strcmp(key, "tile_id") == 0)
+		{
+			if (!lua_isnumber(L, -1))
+			{
+				lua_pop(L, 1);
+				return 0;
+			}
+
+			selector->selection = (int)lua_tointeger(L, -1);
+
+			if (selector->selection >= TILE_CNT)
+				selector->selection %= TILE_CNT;
+			else while (selector->selection < 0)
+				selector->selection += TILE_CNT;
+
+			lua_pop(L, 1);
+			return 0;
+		}
+	}
+
+	return -1;
+}
+
 const struct wg_jumptable_hud tile_selector_jumptable =
 {
 	.type = "tile_selector",
@@ -145,7 +220,9 @@ const struct wg_jumptable_hud tile_selector_jumptable =
 	.draw = draw,
 	.mask = mask,
 
-	.update = update
+	.update = update,
+
+	.index = index
 };
 
 int tile_selector_new(lua_State* L)
