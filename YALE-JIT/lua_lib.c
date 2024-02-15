@@ -13,6 +13,9 @@
 extern double current_timestamp;
 extern double delta_timestamp;
 
+extern int material_test_new(lua_State*);
+extern const struct wg_jumptable_base material_test_jumptable;
+
 extern int button_new(lua_State*);
 extern const struct wg_jumptable_base button_jumptable;
 
@@ -147,6 +150,10 @@ static int native_file_dialog(lua_State* L)
 void lua_openL_misc(lua_State* L)
 {
 	// Widget Initalizers
+	lua_register(L, "material_test", material_test_new);
+	lua_pushlightuserdata(L, &material_test_jumptable);
+	lua_setglobal(L, "type_material_test");
+	
 	lua_register(L, "button", button_new);
 	lua_pushlightuserdata(L, &button_jumptable);
 	lua_setglobal(L, "type_button");

@@ -39,6 +39,9 @@
     <None Include="lua\main_menu.lua">
       <Filter>scripts</Filter>
     </None>
+    <None Include="lua\material_test.lua">
+      <Filter>scripts</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="thread_pool.c">
@@ -91,6 +94,9 @@
     </ClCompile>
     <ClCompile Include="meeple_tile_utility.c">
       <Filter>widgets\meeple_tile</Filter>
+    </ClCompile>
+    <ClCompile Include="material_test.c">
+      <Filter>widgets</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
