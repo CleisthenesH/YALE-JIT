@@ -14,12 +14,6 @@
     <None Include="shaders\onscreen.vert">
       <Filter>core\widget\shaders</Filter>
     </None>
-    <None Include="lua\boot.lua">
-      <Filter>scripts</Filter>
-    </None>
-    <None Include="lua\config.lua">
-      <Filter>scripts</Filter>
-    </None>
     <None Include="..\README.md" />
     <None Include="lua\board.lua">
       <Filter>scripts</Filter>
@@ -34,6 +28,15 @@
       <Filter>scripts</Filter>
     </None>
     <None Include="lua\game.lua">
+      <Filter>scripts</Filter>
+    </None>
+    <None Include="lua\boot.lua">
+      <Filter>scripts\reserved</Filter>
+    </None>
+    <None Include="lua\config.lua">
+      <Filter>scripts\reserved</Filter>
+    </None>
+    <None Include="lua\main_menu.lua">
       <Filter>scripts</Filter>
     </None>
   </ItemGroup>
@@ -155,6 +158,9 @@
     </Filter>
     <Filter Include="widgets\meeple_tile">
       <UniqueIdentifier>{a5c67bf3-ff8a-49e5-ba6c-5af7ef699323}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="scripts\reserved">
+      <UniqueIdentifier>{23a3836b-461c-4f3f-9712-09c1e0721e34}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>

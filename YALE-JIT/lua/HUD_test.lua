@@ -2,9 +2,7 @@
 -- Use of this source code is governed by an MIT-style
 -- license that can be found in the LICENSE file.
 
--- For testing some of the GUI widgets.
-
-print("HUD_test")
+-- Running this file transitions to the HUD test screen
 
 test_button = button			{x=display_width*0.5, y= 64, text="TEST TEXT"}
 test_text_entry = text_entry	{x=display_width*0.5, y=128, text="TEST TEXT"}

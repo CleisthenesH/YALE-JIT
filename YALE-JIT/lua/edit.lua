@@ -2,11 +2,13 @@
 -- Use of this source code is governed by an MIT-style
 -- license that can be found in the LICENSE file.
 
--- the edit mode logic
+-- Running this file transitions to the edit mode screen
 
-dofile("lua/board.lua")
+if not board_present then
+	default_board()
+	board_present = true
+end
 
-default_board()
 camera_set{x = display_width*0.5, y = display_height*0.5}
 
 function exit_edit_mode()

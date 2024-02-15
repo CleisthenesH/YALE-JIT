@@ -2,7 +2,7 @@
 -- Use of this source code is governed by an MIT-style
 -- license that can be found in the LICENSE file.
 
--- game logic main file
+-- Running this file transitions to the main game screen
 
 function moves(piece,zone)
 	local output = {}
@@ -17,9 +17,10 @@ function moves(piece,zone)
 	return tiles_neighbours(q,r)
 end
 
-dofile("lua/board.lua")
+if not board_present then
+	board_import("save/save.lua")
+	board_present = true
+end
 
 camera_set{x = display_width*0.5, y = display_height*0.5}
 camera_push{x = display_width*0.5, y = display_height*0.5,a=1,t=2}
-
-board_import("save/save.lua")

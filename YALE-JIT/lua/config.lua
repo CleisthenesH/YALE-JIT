@@ -1,14 +1,13 @@
--- Copyright 2023 Kieran W Harvie. All rights reserved.
+-- Copyright 2023-2024 Kieran W Harvie. All rights reserved.
 -- Use of this source code is governed by an MIT-style
 -- license that can be found in the LICENSE file.
 
 -- Runs after lua has been initalized but before anything else.
--- Will be used to config things like display size/ thread pool size.
+-- Used to config things like the display size/thread pool size.
 
---boot_file = "lua/HUD_TEST.lua"
-
---video_adapter = 2
---windowed = true
-
+-- Current supported settings:
+--	boot_file: the file path for an alternative boot file
+--	video_adapter: which video adapter will be used to create the display
+--	windowed: whether or not the display is windowed
 
 print("Config Complete")

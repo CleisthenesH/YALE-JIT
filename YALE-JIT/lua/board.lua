@@ -2,7 +2,7 @@
 -- Use of this source code is governed by an MIT-style
 -- license that can be found in the LICENSE file.
 
--- defines board utility functions
+-- Defines board utility functions
 
 function board_export(filename)
 	local file = io.open(filename,"w")

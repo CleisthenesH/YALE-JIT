@@ -190,6 +190,7 @@
     <None Include="lua\edit.lua" />
     <None Include="lua\game.lua" />
     <None Include="lua\HUD_test.lua" />
+    <None Include="lua\main_menu.lua" />
     <None Include="packages.config" />
     <None Include="save\save.lua" />
     <None Include="shaders\offscreen.frag" />
