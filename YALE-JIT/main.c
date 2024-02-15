@@ -24,7 +24,7 @@
 
 // Thread Pool includes
 #include "thread_pool.h"
-void thread_pool_init(size_t);
+void thread_pool_create(int);
 void thread_pool_destroy();
 
 // Widget Interface includes
@@ -307,6 +307,21 @@ static inline int allegro_init()
     return 1;
 }
 
+// Wrapp thread_pool_init to read size from config.
+static void thread_pool_init()
+{
+    lua_getglobal(lua_state, "thread_pool_size");
+
+    const int size = lua_isnumber(lua_state, -1)? luaL_checkint(lua_state, -1): 8;
+
+    lua_pop(lua_state, 1);
+
+    thread_pool_create(size);
+
+    lua_pushnil(lua_state);
+    lua_setglobal(lua_state, "thread_pool_size");
+}
+
 // Initalize the global enviroment.
 static inline void global_init()
 {
@@ -406,7 +421,7 @@ void main()
 
     // Init the Allegro Environment
     allegro_init();
-    thread_pool_init(8);
+    thread_pool_init();
     global_init();
 
 	// Init Systems, check dependency graph for order.

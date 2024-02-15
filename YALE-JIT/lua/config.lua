@@ -9,5 +9,6 @@
 --	boot_file: the file path for an alternative boot file
 --	video_adapter: which video adapter will be used to create the display
 --	windowed: whether or not the display is windowed
+--	thread_pool_size: the number of worker threads in the thread pool
 
 print("Config Complete")

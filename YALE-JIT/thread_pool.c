@@ -1,4 +1,4 @@
-// Copyright 2023 Kieran W Harvie. All rights reserved.
+// Copyright 2023-2024 Kieran W Harvie. All rights reserved.
 // Use of this source code is governed by an MIT-style
 // license that can be found in the LICENSE file.
 
@@ -149,10 +149,10 @@ static void* worker_function(void* arg)
 
 // Create and detach the thread pool
 // Only visable to the main thread
-void thread_pool_init(size_t thread_cnt)
+void thread_pool_create(int thread_cnt)
 {
-	if (thread_cnt == 0)
-		thread_cnt = 2;
+	if (thread_cnt <= 0)
+		thread_cnt = 8;
 
 	thread_pool = (struct thread_pool)
 	{
@@ -169,7 +169,7 @@ void thread_pool_init(size_t thread_cnt)
 		.idle_cond = al_create_cond()
 	};
 
-	for (size_t i = 0; i < thread_cnt; i++)
+	for (int i = 0; i < thread_cnt; i++)
 		al_run_detached_thread(worker_function, NULL);
 }
 
