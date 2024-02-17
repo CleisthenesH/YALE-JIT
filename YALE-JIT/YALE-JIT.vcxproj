@@ -191,7 +191,7 @@
     <None Include="lua\game.lua" />
     <None Include="lua\HUD_test.lua" />
     <None Include="lua\main_menu.lua" />
-    <None Include="lua\material_test.lua" />
+    <None Include="lua\vfx_test.lua" />
     <None Include="packages.config" />
     <None Include="save\save.lua" />
     <None Include="shaders\offscreen.frag" />
@@ -202,6 +202,7 @@
   <ItemGroup>
     <ClCompile Include="button.c" />
     <ClCompile Include="counter.c" />
+    <ClCompile Include="drop_down.c" />
     <ClCompile Include="keyframe.c" />
     <ClCompile Include="main.c" />
     <ClCompile Include="lua_lib.c" />

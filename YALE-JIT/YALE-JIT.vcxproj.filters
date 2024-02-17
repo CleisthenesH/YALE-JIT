@@ -39,7 +39,7 @@
     <None Include="lua\main_menu.lua">
       <Filter>scripts</Filter>
     </None>
-    <None Include="lua\material_test.lua">
+    <None Include="lua\vfx_test.lua">
       <Filter>scripts</Filter>
     </None>
   </ItemGroup>
@@ -62,14 +62,11 @@
     <ClCompile Include="resource_manager.c">
       <Filter>core\resource_manager</Filter>
     </ClCompile>
-    <ClCompile Include="material.c">
-      <Filter>core\widget\components</Filter>
-    </ClCompile>
     <ClCompile Include="scheduler.c">
       <Filter>core\scheduler</Filter>
     </ClCompile>
     <ClCompile Include="particle.c">
-      <Filter>core\particle</Filter>
+      <Filter>core\vfx</Filter>
     </ClCompile>
     <ClCompile Include="button.c">
       <Filter>widgets\HUD</Filter>
@@ -98,6 +95,12 @@
     <ClCompile Include="material_test.c">
       <Filter>widgets</Filter>
     </ClCompile>
+    <ClCompile Include="material.c">
+      <Filter>core\vfx</Filter>
+    </ClCompile>
+    <ClCompile Include="drop_down.c">
+      <Filter>widgets\HUD</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="thread_pool.h">
@@ -112,17 +115,17 @@
     <ClInclude Include="resource_manager.h">
       <Filter>core\resource_manager</Filter>
     </ClInclude>
-    <ClInclude Include="material.h">
-      <Filter>core\widget\components</Filter>
-    </ClInclude>
     <ClInclude Include="scheduler.h">
       <Filter>core\scheduler</Filter>
     </ClInclude>
     <ClInclude Include="particle.h">
-      <Filter>core\particle</Filter>
+      <Filter>core\vfx</Filter>
     </ClInclude>
     <ClInclude Include="meeple_tile_utility.h">
       <Filter>widgets\meeple_tile</Filter>
+    </ClInclude>
+    <ClInclude Include="material.h">
+      <Filter>core\vfx</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -153,9 +156,6 @@
     <Filter Include="core\scheduler">
       <UniqueIdentifier>{db8c6fe0-a6f7-4b52-87ca-71102c374505}</UniqueIdentifier>
     </Filter>
-    <Filter Include="core\particle">
-      <UniqueIdentifier>{bab12b64-689a-4532-975b-a6990dd37155}</UniqueIdentifier>
-    </Filter>
     <Filter Include="widgets\HUD">
       <UniqueIdentifier>{7efb0f2e-fde6-45b9-829a-d0e13e395431}</UniqueIdentifier>
     </Filter>
@@ -167,6 +167,9 @@
     </Filter>
     <Filter Include="scripts\reserved">
       <UniqueIdentifier>{23a3836b-461c-4f3f-9712-09c1e0721e34}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="core\vfx">
+      <UniqueIdentifier>{bab12b64-689a-4532-975b-a6990dd37155}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
