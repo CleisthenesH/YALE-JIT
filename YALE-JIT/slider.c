@@ -143,7 +143,7 @@ static int index(lua_State* L)
 
 static int newindex(lua_State* L)
 {
-	struct slider* const slider = (struct slider* const)check_widget_lua(-2, &slider_jumptable);
+	struct slider* const slider = (struct slider* const)check_widget_lua(-3, &slider_jumptable);
 
 	if (lua_type(L, -2) == LUA_TSTRING)
 	{
