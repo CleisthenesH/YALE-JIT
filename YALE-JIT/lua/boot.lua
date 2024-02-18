@@ -9,6 +9,7 @@ dofile("lua/board.lua")
 
 --play_button:left_click()
 --hud_button:left_click()
+vfx_button:left_click()
 --edit_button:left_click()
 
 print("Boot Complete")

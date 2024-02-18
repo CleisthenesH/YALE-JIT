@@ -22,6 +22,8 @@ struct material_test
 
 	enum MATERIAL_ID effect_id;
 	enum SELECTION_ID selection_id;
+
+	ALLEGRO_BITMAP* bitmap;
 };
 const struct wg_jumptable_base material_test_jumptable;
 
@@ -57,8 +59,11 @@ static void draw(const struct wg_base* const wg)
 
 	material_apply(material_test->material);
 
-	al_draw_filled_rectangle(-wg->half_width, -wg->half_height, wg->half_width, wg->half_height,
-		al_map_rgb(0,255,0));
+	if (material_test->bitmap)
+		al_draw_bitmap(material_test->bitmap, -wg->half_width, -wg->half_height, 0);
+	else
+		al_draw_filled_rectangle(-wg->half_width, -wg->half_height, wg->half_width, wg->half_height,
+			al_map_rgb(0, 255, 0));
 
 	material_apply(NULL);
 }
@@ -85,7 +90,7 @@ static int newindex(lua_State* L)
 
 		if (strcmp(key, "effect") == 0)
 		{
-			material_test->effect_id = luaL_checkinteger(L, -1);
+			material_test->effect_id = luaL_checkinteger(L, -1)-1;
 
 			free(material_test->material);
 			material_test->material = material_new(material_test->effect_id, material_test->selection_id);
@@ -95,10 +100,22 @@ static int newindex(lua_State* L)
 
 		if (strcmp(key, "selection") == 0)
 		{
-			material_test->selection_id = luaL_checkinteger(L, -1);
+			material_test->selection_id = luaL_checkinteger(L, -1)-1;
 
 			free(material_test->material);
-			material_test->material = material_new(material_test->selection_id, material_test->selection_id);
+			material_test->material = material_new(material_test->effect_id, material_test->selection_id);
+
+			return 0;
+		}
+
+		if (strcmp(key, "bitmap") == 0)
+		{
+			if (material_test->bitmap)
+				al_destroy_bitmap(material_test);
+
+			material_test->bitmap = al_load_bitmap(lua_tostring(L, -1));
+			material_test->half_height = 0.5 * al_get_bitmap_height(material_test->bitmap);
+			material_test->half_width = 0.5 * al_get_bitmap_width(material_test->bitmap);
 
 			return 0;
 		}
@@ -134,6 +151,8 @@ int material_test_new(lua_State* L)
 
 		lua_pop(L, 2);
 	}
+
+	material_test->bitmap = NULL;
 
 	const double min_half_width = 200;
 	const double min_half_height = 200;
