@@ -12,6 +12,7 @@
 #include <allegro5/allegro.h>
 #include <allegro5/allegro_font.h>
 #include <allegro5/allegro_opengl.h>
+#include <allegro5/allegro_primitives.h>
 
 #include <lua.h>
 #include <lauxlib.h>
@@ -840,7 +841,7 @@ static enum {
     ENGINE_STATE_TO_SNAP,               // A widget is getting dragged and is mocing towards the snap.
     ENGINE_STATE_SNAP,                  // A widget is getting dragged and is located on the snap.
     ENGINE_STATE_EMPTY_DRAG,            // Drag but without a widget underneath. Used to control camera.
-    ENGINE_STATE_LOCKED,                // The widget engine has been locked.
+    ENGINE_STATE_TABBED_OUT             // The engine has been tabbed out from.
 } widget_engine_state;
 
 static double transition_timestamp;
@@ -855,7 +856,7 @@ static const char* engine_state_str[] = {
        "To Snap",
        "Snap",
        "Empty Drag",
-       "Locked"
+       "Tabbed Out"
 };
 
 // Whether the current_hover should be rendered ontop of other widgets.
@@ -1237,6 +1238,70 @@ struct wg_base* check_widget_lua(int idx, const struct wg_jumptable_base* const 
     return downcast(wg);
 }
 
+// Change widget_engine_state __like__ ALLEGRO_EVENT_MOUSE_BUTTON_UP occurred.
+static void process_mouse_up(unsigned int button, bool allow_drag_end_drop)
+{
+    if (button != 1)
+        return;
+
+    if (widget_engine_state == ENGINE_STATE_EMPTY_DRAG)
+    {
+        widget_engine_state = ENGINE_STATE_IDLE;
+        return;
+    }
+
+    // Split up just in case empty_drag and current_hover desync
+    if (!current_hover)
+        return;
+
+    switch (widget_engine_state)
+    {
+    case ENGINE_STATE_PRE_DRAG_THRESHOLD:
+        call(current_hover, left_click);
+        if (current_hover)
+            call(current_hover, left_click_end);
+
+        // This means hover_start can be called twice without a hover_end
+        // Not commited to it (should filter for existance of drag_start?)
+        if (current_hover)
+            call(current_hover, hover_start);
+        break;
+
+    case ENGINE_STATE_POST_DRAG_THRESHOLD:
+        call(current_hover, left_click_end);
+
+        // This means hover_start can be called twice without a hover_end
+        // Not commited to it
+        if (current_hover)
+            call(current_hover, hover_start);
+        break;
+
+    case ENGINE_STATE_DRAG:
+    case ENGINE_STATE_SNAP:
+    case ENGINE_STATE_TO_SNAP:
+    case ENGINE_STATE_TO_DRAG:
+        tweener_interupt(current_hover);
+
+        drag_release.t = current_timestamp + 0.1;
+
+        tweener_push(current_hover, &drag_release);
+
+        if (current_drop && allow_drag_end_drop)
+        {
+            call_2(current_drop, drag_end_drop, current_hover);
+            if (current_hover)
+                call(current_hover, drag_end_no_drop);
+        }
+        else
+            call(current_hover, drag_end_no_drop);
+
+        current_drop = NULL;
+        break;
+    }
+
+    widget_engine_state = current_hover ? ENGINE_STATE_HOVER : ENGINE_STATE_IDLE;
+}
+
 /*********************************************/
 /*            Big Four Callbacks             */
 /*********************************************/
@@ -1258,6 +1323,17 @@ void widget_engine_draw()
     {
         queue_insert(current_hover, current_hover->next);
         draw_widget(current_hover);
+    }
+
+    if (widget_engine_state == ENGINE_STATE_TABBED_OUT)
+    {
+        al_use_transform(&identity_transform);
+
+        ALLEGRO_DISPLAY* display = al_get_current_display();
+
+        al_draw_filled_rectangle(0, 0, 
+            al_get_display_width(display), al_get_display_height(display),
+            al_map_rgba_f(0,0,0, 0.5));
     }
 
 #ifdef WIDGET_DEBUG_DRAW
@@ -1283,7 +1359,7 @@ void widget_engine_draw()
 // Update the widget engine state
 void widget_engine_update()
 {
-    if (widget_engine_state == ENGINE_STATE_LOCKED)
+    if (widget_engine_state == ENGINE_STATE_TABBED_OUT)
         return;
 
     update_drag_pointers();
@@ -1344,18 +1420,19 @@ void widget_engine_update()
 // Make a work queue with only the widgets that have an update method.
 struct work_queue* widget_engine_widget_work()
 {
+    // Since the update method doesn't change maybe we should have a static queue?
+
     struct work_queue* work_queue = work_queue_create();
 
-    // Since the update method doesn't change maybe we should have a static queue?
-    if (widget_engine_state != ENGINE_STATE_LOCKED)
-        for (enum wg_class class = WG_CLASS_START; class < WG_CLASS_END; class++)
-			for (struct wg_base_internal* widget = queue_head[class]; widget; widget = widget->next)
-			{
-				work_queue_push(work_queue,tweener_blend,widget);
+	for (enum wg_class class = WG_CLASS_START; class < WG_CLASS_END; class++)
+		for (struct wg_base_internal* widget = queue_head[class]; widget; widget = widget->next)
+		{
+			work_queue_push(work_queue,tweener_blend,widget);
 
-				if(widget->jumptable.base->update)
-					work_queue_push(work_queue, widget->jumptable.base->update, downcast(widget));
-			}
+			if(widget_engine_state != ENGINE_STATE_TABBED_OUT &&
+                widget->jumptable.base->update)
+				work_queue_push(work_queue, widget->jumptable.base->update, downcast(widget));
+		}
 
     return work_queue;
 }
@@ -1364,11 +1441,17 @@ struct work_queue* widget_engine_widget_work()
 void widget_engine_event_handler()
 {
     // TODO: Incorperate to the threadpool?
+
+    if (widget_engine_state == ENGINE_STATE_TABBED_OUT)
+        if (current_event.type != ALLEGRO_EVENT_DISPLAY_SWITCH_IN)
+            return;
+        else
+            widget_engine_state = ENGINE_STATE_IDLE;
+
     for (enum wg_class class = WG_CLASS_START; class < WG_CLASS_END; class++)
-		if (widget_engine_state != ENGINE_STATE_LOCKED)
-			for (struct wg_base_internal* widget = queue_head[class]; widget; widget = widget->next)
-                if(widget->jumptable.base->event_handler)
-				    widget->jumptable.base->event_handler(downcast(widget));
+		for (struct wg_base_internal* widget = queue_head[class]; widget; widget = widget->next)
+			if(widget->jumptable.base->event_handler)
+				widget->jumptable.base->event_handler(downcast(widget));
 
     switch (current_event.type)
     {
@@ -1414,64 +1497,7 @@ void widget_engine_event_handler()
         break;
 
     case ALLEGRO_EVENT_MOUSE_BUTTON_UP:
-        if (current_event.mouse.button != 1)
-            break;
-
-        if (widget_engine_state == ENGINE_STATE_EMPTY_DRAG)
-        {
-            widget_engine_state = ENGINE_STATE_IDLE;
-            break;
-        }
-
-        // Split up just in case empty_drag and current_hover desync
-        if (!current_hover)
-            break;
-
-        switch (widget_engine_state)
-        {
-        case ENGINE_STATE_PRE_DRAG_THRESHOLD:
-            call(current_hover, left_click);
-            if(current_hover)
-                call(current_hover, left_click_end);
-
-            // This means hover_start can be called twice without a hover_end
-            // Not commited to it (should filter for existance of drag_start?)
-            if (current_hover)
-                call(current_hover, hover_start);
-            break;
-
-        case ENGINE_STATE_POST_DRAG_THRESHOLD:
-            call(current_hover, left_click_end);
-
-            // This means hover_start can be called twice without a hover_end
-            // Not commited to it
-            if (current_hover)
-                call(current_hover, hover_start);
-            break;
-
-        case ENGINE_STATE_DRAG:
-        case ENGINE_STATE_SNAP:
-        case ENGINE_STATE_TO_SNAP:
-        case ENGINE_STATE_TO_DRAG:
-            tweener_interupt(current_hover);
-
-            drag_release.t = current_timestamp + 0.1;
-
-            tweener_push(current_hover, &drag_release);
-            if (current_drop)
-            {
-                call_2(current_drop, drag_end_drop, current_hover);
-                if(current_hover)
-                    call(current_hover, drag_end_no_drop);
-            }
-            else
-                call(current_hover, drag_end_no_drop);
-
-            current_drop = NULL;
-            break;
-        }
-
-        widget_engine_state = current_hover ? ENGINE_STATE_HOVER : ENGINE_STATE_IDLE;
+        process_mouse_up(current_event.mouse.button,true);
         break;
 
     case ALLEGRO_EVENT_MOUSE_AXES:
@@ -1486,8 +1512,14 @@ void widget_engine_event_handler()
             camera.sx = camera.sx < 0.2 ? 0.2 : camera.sx;
             camera.sy = camera.sy < 0.2 ? 0.2 : camera.sy;
         }
+        break;
+
+    case ALLEGRO_EVENT_DISPLAY_SWITCH_OUT:
+        process_mouse_up(0,false);
+        process_mouse_up(1,false);
+
+        widget_engine_state = ENGINE_STATE_TABBED_OUT;
     }
-    
 }
 
 /*********************************************/
