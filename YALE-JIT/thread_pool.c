@@ -66,6 +66,21 @@ void work_queue_push(struct work_queue* queue, void(*funct)(void*), void* arg)
 	queue->last = work;
 }
 
+void work_queue_concatenate(struct work_queue* dst, struct work_queue* src)
+{
+	if (!dst || !src)
+		return;
+
+	if(dst->last)
+		dst->last->next = src->first;
+	else
+		dst->first = src->first;
+
+	dst->last = src->last;
+
+	free(src);
+}
+
 // Pop a work object from the queue
 static struct work* work_queue_pop(struct work_queue* queue)
 {
@@ -78,6 +93,24 @@ static struct work* work_queue_pop(struct work_queue* queue)
 		queue->last = NULL;
 
 	return work;
+}
+
+// Simply run the work queue in the calling thread.
+void work_queue_run(struct work_queue* queue)
+{
+	if (!queue || !queue->first)
+		return;
+
+	struct work* work = queue->first;
+	struct work* next = NULL;
+
+	while (work)
+	{
+		work->funct(work->arg);
+		next = work->next;
+		free(work);
+		work = next;
+	}
 }
 
 // Free a work queue and all its constituent work objects.

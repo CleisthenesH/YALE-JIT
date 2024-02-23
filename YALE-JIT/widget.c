@@ -39,6 +39,52 @@ extern lua_State* const lua_state;
 extern ALLEGRO_FONT* debug_font;
 
 /*********************************************/
+/*              Utility Structs              */
+/*********************************************/
+
+enum node_type
+{
+    WG_BASE,
+    WG_ZONE,
+    WG_PIECE,
+    WG_HUD,
+    CR_BASE
+};
+
+struct engine_node
+{
+    enum node_type engine_type;
+
+    struct engine_node* parent;
+    struct engine_node* next;
+    struct engine_node* previous;
+
+    struct
+    {
+        // Keypoints
+        size_t used, allocated;
+        struct keyframe* keypoints;
+
+        // Looping data
+        size_t looping_idx;
+        double looping_time;
+    }tweener;
+};
+
+static bool engine_node_is_widget(struct engine_node* node)
+{
+    return (node->engine_type == WG_BASE 
+        || node->engine_type == WG_ZONE
+        || node->engine_type == WG_PIECE
+        || node->engine_type == WG_HUD);
+}
+
+static bool engine_node_is_container(struct engine_node* node)
+{
+    return (node->engine_type == CR_BASE);
+}
+
+/*********************************************/
 /*            Widget Memory Layout           */
 /*********************************************/
 
@@ -47,81 +93,42 @@ extern ALLEGRO_FONT* debug_font;
 // Zone/Piece Particulars 
 // General Particulars
 
-//TODO: should this be public?
-enum wg_class
-{
-    // In order of render
-    WG_ZONE,
-    WG_PIECE,
-    WG_HUD,
-
-    WG_CLASS_CNT = 3,
-
-    //WG_BASE,
-
-    // For easy iteration
-    WG_CLASS_START = WG_ZONE,
-    WG_CLASS_END = WG_CLASS_START + WG_CLASS_CNT,
-};
-
-struct wg_header
-{
-	enum wg_class class;
-
-	union {
-		struct wg_jumptable_base* base;
-		struct wg_jumptable_zone* zone;
-		struct wg_jumptable_piece* piece;
-        struct wg_jumptable_hud* hud;
-	} jumptable;
-
-	struct wg_base_internal* next;
-	struct wg_base_internal* previous;
-
-    struct
-    {
-        // Keypoints
-        size_t used, allocated;
-        struct keyframe* keypoints; 
-
-        // Looping data
-        size_t looping_idx;
-        double looping_time;
-    }tweener;
-};
-
 struct wg_base_internal
 {
-	struct wg_header;
-	struct wg_base;
+	struct engine_node;
+    struct wg_jumptable_base* jumptable;
+    struct wg_base;
 };
 
 struct wg_zone_internal
 {
-	struct wg_header;
-	struct wg_zone;
+	struct engine_node; 
+    struct wg_jumptable_zone* jumptable;
+    struct wg_zone;
 };
 
 struct wg_piece_internal
 {
-	struct wg_header;
-	struct wg_piece;
+	struct engine_node;
+    struct wg_jumptable_piece* jumptable;
+    struct wg_piece;
 };
 
 struct wg_hud_internal
 {
-    struct wg_header;
+    struct engine_node;
+    struct wg_jumptable_hud* jumptable;
     struct wg_hud;
 };
 
 static inline struct wg_base_internal* get_internal(struct wg_base* base)
 {
-     return (struct wg_base_internal*) ((char*) base - sizeof(struct wg_header) );
+     return (struct wg_base_internal*) ((char*) base - sizeof(struct engine_node) - sizeof(struct wg_jumptable_base*));
 }
 
 static inline struct wg_base* downcast(struct wg_base_internal* internal)
 {
-    return (struct wg_base*) ((char*)internal + sizeof(struct wg_header));
+    return (struct wg_base*) ((char*)internal + sizeof(struct engine_node) + sizeof(struct wg_jumptable_base*));
 }
 
 static inline struct keyframe* get_keyframe(struct wg_base_internal* wg)
@@ -129,78 +136,11 @@ static inline struct keyframe* get_keyframe(struct wg_base_internal* wg)
     return (struct keyframe*) downcast(wg);
 }
 
-
-/*********************************************/
-/*          Widget Queue Methods             */
-/*********************************************/
-
-static struct wg_base_internal* queue_head[WG_CLASS_CNT];
-static struct wg_base_internal* queue_tail[WG_CLASS_CNT];
-
-// Pop a widget out of the engine
-static void queue_pop(struct wg_base_internal* const widget)
-{
-    if (widget->next)
-        widget->next->previous = widget->previous;
-    else if(queue_tail[widget->class] == widget)
-        queue_tail[widget->class] = widget->previous;
-
-    if (widget->previous)
-        widget->previous->next = widget->next;
-    else if (queue_head[widget->class] == widget)
-        queue_head[widget->class] = widget->next;
-}
-
-// Insert the first widget behind the second
-static void queue_insert(struct wg_base_internal* mover, struct wg_base_internal* target)
-{
-    // TODO: Add some type checking, not every mover type should be able to go with every target type.
-    // Preformance issue, usesd in the drawing loop. (But only twice).
-
-    // Assumes mover is outside the list.
-    // I.e. that mover's next and previous are null.
-    mover->next = target;
-
-    // If the second is null append the first to the head
-    if (target)
-    {
-        if (target->previous)
-            target->previous->next = mover;
-        else
-            queue_head[target->class] = mover;
-
-        target->previous = mover;
-    }
-    else
-    {
-        mover->previous = queue_tail[mover->class];
-
-        if (queue_tail[mover->class])
-            queue_tail[mover->class]->next = mover;
-        else
-            queue_head[mover->class] = mover;
-
-        queue_tail[mover->class] = mover;
-    }
-}
-
-// Move the mover widget behind the target widget.
-void widget_interface_move(struct wg_base* mover, struct wg_base* target)
-{
-    if (mover == target)
-        return;
-
-    // Only this function is visable to the widget writer.
-    // Since poping a widget without calling gc isn't allowed.
-    queue_pop(get_internal(mover));
-    queue_insert(get_internal(mover), get_internal(target));
-}
-
 /*********************************************/
 /*              Widget Tweener               */
 /*********************************************/
 
-static void tweener_init(struct wg_base_internal* const wg)
+static void tweener_init(struct engine_node* const wg)
 {
     size_t hint = 1;
 
@@ -213,12 +153,12 @@ static void tweener_init(struct wg_base_internal* const wg)
     keyframe_copy(wg->tweener.keypoints, get_keyframe(wg));
 }
 
-static void tweener_gc(struct wg_base_internal* const wg)
+static void tweener_gc(struct engine_node* const wg)
 {
     free(wg->tweener.keypoints);
 }
 
-static void tweener_blend_nonlooping(struct wg_base_internal* const wg)
+static void tweener_blend_nonlooping(struct engine_node* const wg)
 {
     // Clean old frames
     size_t first_future_frame = 0;
@@ -251,7 +191,7 @@ static void tweener_blend_nonlooping(struct wg_base_internal* const wg)
     keyframe_blend(get_keyframe(wg), wg->tweener.keypoints + 1, wg->tweener.keypoints, blend);
 }
 
-static void tweener_blend_looping(struct wg_base_internal* const wg)
+static void tweener_blend_looping(struct engine_node* const wg)
 {
     while (wg->tweener.keypoints[wg->tweener.looping_idx].t <= current_timestamp)
     {
@@ -274,7 +214,7 @@ static void tweener_blend_looping(struct wg_base_internal* const wg)
     keyframe_blend(get_keyframe(wg), wg->tweener.keypoints + 1, wg->tweener.keypoints, blend);
 }
 
-static void tweener_blend(struct wg_base_internal* const wg)
+static void tweener_blend(struct engine_node* const wg)
 {
     if (wg->tweener.used > 1)
         if (wg->tweener.looping_time > 0)
@@ -283,7 +223,7 @@ static void tweener_blend(struct wg_base_internal* const wg)
             tweener_blend_nonlooping(wg);
 }
 
-static void tweener_set(struct wg_base_internal* const wg, struct keyframe* keypoint)
+static void tweener_set(struct engine_node* const wg, struct keyframe* keypoint)
 {
     wg->tweener.used = 1;
     wg->tweener.looping_time = -1;
@@ -292,7 +232,7 @@ static void tweener_set(struct wg_base_internal* const wg, struct keyframe* keyp
     keyframe_copy(wg->tweener.keypoints, keypoint);
 }
 
-static void tweener_push(struct wg_base_internal* const wg, struct keyframe* keypoint)
+static void tweener_push(struct engine_node* const wg, struct keyframe* keypoint)
 {
     if (keypoint->t - wg->tweener.keypoints[wg->tweener.used - 1].t < 0.01)
         return;
@@ -317,7 +257,7 @@ static void tweener_push(struct wg_base_internal* const wg, struct keyframe* key
     keyframe_copy(wg->tweener.keypoints + wg->tweener.used++, keypoint);
 }
 
-static void tweener_interupt(struct wg_base_internal* const wg)
+static void tweener_interupt(struct engine_node* const wg)
 {
     if (wg->tweener.used > 1)
         tweener_blend(wg);
@@ -328,12 +268,12 @@ static void tweener_interupt(struct wg_base_internal* const wg)
     keyframe_copy(wg->tweener.keypoints, get_keyframe(wg));
 }
 
-static void tweener_destination(struct wg_base_internal* const wg, struct keyframe* keypoint)
+static void tweener_destination(struct engine_node* const wg, struct keyframe* keypoint)
 {
     keyframe_copy(keypoint, wg->tweener.keypoints + wg->tweener.used - 1);
 }
 
-static void tweener_enter_loop(struct wg_base_internal* wg, double loop_offset)
+static void tweener_enter_loop(struct engine_node* wg, double loop_offset)
 {
     if (wg->tweener.used < 2)
         return;
@@ -353,6 +293,326 @@ static void tweener_enter_loop(struct wg_base_internal* wg, double loop_offset)
 
     wg->tweener.looping_idx = idx;
     wg->tweener.looping_time = loop_time;
+}
+
+/*********************************************/
+/*           Widget Engine State             */
+/*********************************************/
+
+static enum {
+    ENGINE_STATE_IDLE,                  // Idle state.
+    ENGINE_STATE_HOVER,                 // A widget is being hovered but the mouse is up.
+    ENGINE_STATE_PRE_DRAG_THRESHOLD,    // Inbetween mouse down and callback (checking if click or drag).
+    ENGINE_STATE_POST_DRAG_THRESHOLD,   // The drag threshold has been reached but the widget can't be dragged.
+    ENGINE_STATE_DRAG,                  // A widget is getting dragged and is located on the mouse.
+    ENGINE_STATE_TO_DRAG,               // A widget is getting dragged and is moving towards the mouse.
+    ENGINE_STATE_TO_SNAP,               // A widget is getting dragged and is mocing towards the snap.
+    ENGINE_STATE_SNAP,                  // A widget is getting dragged and is located on the snap.
+    ENGINE_STATE_EMPTY_DRAG,            // Drag but without a widget underneath. Used to control camera.
+    ENGINE_STATE_TABBED_OUT             // The engine has been tabbed out from.
+} widget_engine_state;
+
+static double transition_timestamp;
+
+static const char* engine_state_str[] = {
+       "Idle",
+       "Hover",
+       "Click (Pre-Threshold)",
+       "Click (Post-Threshold)",
+       "Drag",
+       "To Drag",
+       "To Snap",
+       "Snap",
+       "Empty Drag",
+       "Tabbed Out"
+};
+
+// Whether the current_hover should be rendered ontop of other widgets.
+static bool hover_on_top()
+{
+    return widget_engine_state == ENGINE_STATE_DRAG ||
+        widget_engine_state == ENGINE_STATE_SNAP ||
+        widget_engine_state == ENGINE_STATE_TO_SNAP ||
+        widget_engine_state == ENGINE_STATE_TO_DRAG;
+}
+
+// Click, Drag, and Drop pointers
+static struct wg_base_internal* last_click;
+static struct wg_base_internal* current_hover;
+static struct wg_base_internal* current_drop;
+
+/*********************************************/
+/*             Container Methods             */
+/*********************************************/
+
+struct cr_base
+{
+    struct engine_node;
+    struct wg_base;
+
+    struct engine_node* head;
+    struct engine_node* tail;
+};
+
+static struct cr_base* cr_zones, *cr_pieces, *cr_hud;
+
+static struct cr_base* get_top_cr(enum node_type type)
+{
+    switch (type)
+    {
+    case WG_ZONE:
+        return cr_zones;
+    case WG_PIECE:
+        return cr_pieces;
+    case WG_HUD:
+        return cr_hud;
+    }
+
+    return NULL;
+}
+
+static struct cr_base* container_init()
+{
+    struct cr_base* cr = calloc(sizeof(struct cr_base),1);
+
+    tweener_init(cr);
+
+    return cr;
+}
+
+static struct work_queue* containter_update(struct cr_base* cr)
+{
+    struct work_queue* work = work_queue_create();
+    
+    struct engine_node* node = (struct engine_node*) cr->head;
+
+    while (node)
+    {
+        if (engine_node_is_widget(node))
+        {
+            work_queue_push(work, tweener_blend, node);
+            struct wg_base_internal* wg = (struct wg_base_internal*) node;
+
+            if (widget_engine_state != ENGINE_STATE_TABBED_OUT &&
+                wg->jumptable->update)
+                work_queue_push(work, wg->jumptable->update, downcast(wg));
+        }
+
+        if (engine_node_is_container(node))
+        {
+            work_queue_concatenate(work, containter_update(node));
+        }
+
+        node = node->next;
+    }
+
+    return work;
+}
+
+static void draw_widget(const struct wg_base_internal* const);
+
+static struct work_queue* containter_draw(struct cr_base* cr)
+{
+    struct work_queue* work = work_queue_create();
+
+    struct engine_node* node = (struct engine_node*)cr->head;
+
+    while (node)
+    {
+        if (engine_node_is_widget(node))
+        {
+            struct wg_base_internal* wg = (struct wg_base_internal*)node;
+            work_queue_push(work, draw_widget, wg);
+        }
+
+        if (engine_node_is_container(node))
+        {
+            work_queue_concatenate(work, containter_draw(node));
+        }
+
+        node = node->next;
+    }
+
+    return work;
+}
+
+static struct work_queue* containter_event_handler(struct cr_base* cr)
+{
+    struct work_queue* work = work_queue_create();
+
+    struct engine_node* node = (struct engine_node*)cr->head;
+
+    while (node)
+    {
+        if (engine_node_is_widget(node))
+        {
+            struct wg_base_internal* wg = (struct wg_base_internal*)node;
+            if(wg->jumptable->event_handler)
+				work_queue_push(work, wg->jumptable->event_handler, downcast(wg));
+        }
+
+        if (engine_node_is_container(node))
+        {
+            work_queue_concatenate(work, containter_event_handler(node));
+        }
+
+        node = node->next;
+    }
+
+    return work;
+}
+
+// Don't think this implemntation
+size_t picker_index;
+void camera_compose_transform(ALLEGRO_TRANSFORM*,double);
+
+static void mask_widget(struct wg_base_internal* wg)
+{
+    size_t pick_buffer = picker_index++;
+    float color_buffer[3];
+
+    for (size_t i = 0; i < 3; i++)
+    {
+        color_buffer[i] = ((float)(pick_buffer % 200)) / 200;
+        pick_buffer /= 200;
+    }
+
+    al_set_shader_float_vector("picker_color", 3, color_buffer, 1);
+
+    ALLEGRO_TRANSFORM buffer;
+    keyframe_build_transform((const struct keyframe* const)get_keyframe(wg), &buffer);
+    camera_compose_transform(&buffer, wg->c);
+    al_use_transform(&buffer);
+
+    wg->jumptable->mask(downcast(wg));
+}
+
+static struct work_queue* containter_mask(struct cr_base* cr)
+{
+    struct work_queue* work = work_queue_create();
+
+    struct engine_node* node = (struct engine_node*)cr->head;
+
+    while (node)
+    {
+        if (engine_node_is_widget(node))
+        {
+            struct wg_base_internal* wg = (struct wg_base_internal*)node;
+            work_queue_push(work, mask_widget, wg);
+        }
+
+        if (engine_node_is_container(node))
+        {
+            work_queue_concatenate(work, containter_mask(node));
+        }
+
+        node = node->next;
+    }
+
+    return work;
+}
+
+static struct engine_node* engine_mask_select_inner(struct cr_base* cr, size_t* i)
+{
+    struct engine_node* node = (struct engine_node*)cr->head;
+
+    while (node && *i > 1)
+    {
+        if (engine_node_is_widget(node))
+        {
+            node = node->next;
+            (* i)--;
+        }else if (engine_node_is_container(node))
+            engine_mask_select_inner(node, i);
+    }
+
+    return node;
+}
+
+static struct engine_node* engine_mask_select(size_t i)
+{
+    struct engine_node* buffer = NULL;
+
+    buffer = engine_mask_select_inner(cr_zones, &i);
+
+    if (buffer && i == 1)
+        return buffer;
+
+    buffer = engine_mask_select_inner(cr_pieces, &i);
+
+    if (buffer && i == 1)
+        return buffer;
+
+    buffer = engine_mask_select_inner(cr_hud, &i);
+
+    if (buffer && i == 1)
+        return buffer;
+
+    return NULL;
+}
+
+// Pop a widget out of the engine
+static void queue_pop(struct engine_node* const node)
+{
+    struct cr_base* cr = (struct cr_base*)node;
+    struct cr_base* parent = cr->parent;
+    
+    if (cr->next)
+        cr->next->previous = cr->previous;
+    else if(parent && parent->tail == cr)
+        parent->tail = cr->previous;
+
+    if (cr->previous)
+        cr->previous->next = cr->next;
+    else if (parent && parent->head == cr)
+        parent->head = cr->next;
+}
+
+// Insert the first widget behind the second
+static void queue_insert(struct engine_node* mover, struct engine_node* target)
+{
+    // TODO: Add some type checking, not every mover type should be able to go with every target type.
+    // Preformance issue, usesd in the drawing loop. (But only twice).
+
+    // Assumes mover is outside the list.
+    // I.e. that mover's next and previous are null.
+    mover->next = target;
+
+    struct cr_base* parent = mover->parent;
+
+    // If the second is null append the first to the head
+    if (target)
+    {
+        if (target->previous)
+            target->previous->next = mover;
+        else if(target->parent)
+            ((struct cr_base*) target->parent)->head = mover;
+
+        target->previous = mover;
+    }
+    else if(parent)
+    {
+        mover->previous = parent->tail;
+
+        if (parent->tail)
+            parent->tail->next = mover;
+        else
+            parent->head = mover;
+        
+        parent->tail = mover;
+    }
+}
+
+// Move the mover widget behind the target widget.
+void widget_interface_move(struct wg_base* mover, struct wg_base* target)
+{
+    if (mover == target)
+        return;
+
+    // Only this function is visable to the widget writer.
+    // Since poping a widget without calling gc isn't allowed.
+    queue_pop(get_internal(mover));
+    queue_insert(get_internal(mover), get_internal(target));
 }
 
 /*********************************************/
@@ -386,22 +646,31 @@ static void zone_and_piece_init()
 }
 
 // Return the zones to the idle state
+static void idle_zones_cr(struct cr_base* cr)
+{
+    for (struct engine_node* node = cr->head; node; node = node->next)
+    {
+        if (node->engine_type == WG_ZONE)
+        {
+            struct wg_zone_internal* wg = (struct wg_zone_internal*)node;
+            wg->valid_move = false;
+            wg->nominated = false;
+
+            if (auto_snap)
+                wg->snappable = false;
+
+            if (wg->jumptable->highlight_end)
+                wg->jumptable->highlight_end((struct wg_zone* const)downcast((struct wg_base_internal*)wg));
+
+            wg->highlighted = false;
+        }
+        else if (engine_node_is_container(node))
+            idle_zones_cr(node);
+    }
+}
 static void idle_zones()
 {
-    for (struct wg_zone_internal* wg = (struct wg_zone_internal*)queue_head[WG_ZONE];
-        wg; wg = (struct wg_zone_internal*)wg->next)
-    {
-        wg->valid_move = false;
-        wg->nominated = false;
-
-        if (auto_snap)
-            wg->snappable = false;
-
-        if (wg->jumptable.zone->highlight_end)
-            wg->jumptable.zone->highlight_end((struct wg_zone* const)downcast((struct wg_base_internal*)wg));
-
-        wg->highlighted = false;
-    }
+    idle_zones_cr(cr_zones);
 }
 
 static void call_moves(struct wg_piece_internal* wg)
@@ -433,8 +702,8 @@ static void call_moves(struct wg_piece_internal* wg)
             {
                 originating_zone->highlighted = true;
 
-                if (originating_zone->jumptable.zone->highlight_start)
-                    originating_zone->jumptable.zone->highlight_start((struct wg_zone* const)downcast((struct wg_base_internal*)originating_zone));
+                if (originating_zone->jumptable->highlight_start)
+                    originating_zone->jumptable->highlight_start((struct wg_zone* const)downcast((struct wg_base_internal*)originating_zone));
             }
 
             if (auto_snap)
@@ -466,7 +735,7 @@ static void call_moves(struct wg_piece_internal* wg)
 
         struct wg_zone_internal* zone = (struct wg_zone_internal*)luaL_checkudata(lua_state, -1, "widget_mt");
 
-        if (zone->class != WG_ZONE)
+        if (zone->engine_type != WG_ZONE)
         {
             lua_pop(lua_state, 1);
             continue;
@@ -478,8 +747,8 @@ static void call_moves(struct wg_piece_internal* wg)
         {
             zone->highlighted = true;
 
-            if (zone->jumptable.zone->highlight_start)
-                zone->jumptable.zone->highlight_start((struct wg_zone* const)downcast((struct wg_base_internal*)zone));
+            if (zone->jumptable->highlight_start)
+                zone->jumptable->highlight_start((struct wg_zone* const)downcast((struct wg_base_internal*)zone));
         }
 
         if (auto_snap)
@@ -569,8 +838,8 @@ static inline void move_piece(struct wg_zone_internal* const zone, struct wg_pie
     if (piece->zone)
     {
         struct wg_zone_internal* leaving_zone = (struct wg_zone_internal*)get_internal((struct wg_base*)piece->zone);
-        if (leaving_zone->jumptable.zone->remove_piece)
-            leaving_zone->jumptable.zone->remove_piece(piece->zone, (struct wg_piece*)downcast((struct wg_base_internal*)piece));
+        if (leaving_zone->jumptable->remove_piece)
+            leaving_zone->jumptable->remove_piece(piece->zone, (struct wg_piece*)downcast((struct wg_base_internal*)piece));
 
         remove_piece(leaving_zone, piece);
     }
@@ -580,8 +849,8 @@ static inline void move_piece(struct wg_zone_internal* const zone, struct wg_pie
     {
         struct wg_zone* entering_zone = (struct wg_zone*)downcast((struct wg_base_internal*)zone);
 
-        if (zone->jumptable.zone->append_piece)
-            zone->jumptable.zone->append_piece(entering_zone, (struct wg_piece*)downcast((struct wg_base_internal*)piece));
+        if (zone->jumptable->append_piece)
+            zone->jumptable->append_piece(entering_zone, (struct wg_piece*)downcast((struct wg_base_internal*)piece));
 
         append_piece(zone, piece);
 
@@ -606,7 +875,7 @@ static int manual_move(lua_State* L)
     if (!piece || !zone)
         return 0;
 
-    if (piece->class != WG_PIECE || zone->class != WG_ZONE)
+    if (piece->engine_type != WG_PIECE || zone->engine_type != WG_ZONE)
         return 0;
 
     move_piece(zone, piece);
@@ -667,11 +936,11 @@ static void call_hover_start(struct wg_base_internal* const wg, const char* key)
     if (strcmp(key, "hover_start") != 0)
         return;
 
-    if (wg->class == WG_PIECE)    
+    if (wg->engine_type == WG_PIECE)
     {
         call_moves((struct wg_piece_internal*)wg);
     }
-    else if (wg->class == WG_HUD)
+    else if (wg->engine_type == WG_HUD)
     {
         struct wg_hud_internal* hud = (struct wg_hud_internal*)wg;
 
@@ -685,11 +954,11 @@ static void call_hover_end(struct wg_base_internal* const wg, const char* key)
     if (strcmp(key, "hover_end") != 0)
         return;
 
-    if (wg->class == WG_PIECE)
+    if (wg->engine_type == WG_PIECE)
     {
         idle_zones();
     }
-    else if (wg->class == WG_HUD)
+    else if (wg->engine_type == WG_HUD)
     {
         struct wg_hud_internal* hud = (struct wg_hud_internal*)wg;
 
@@ -700,11 +969,11 @@ static void call_hover_end(struct wg_base_internal* const wg, const char* key)
 
 static void call_drop_start(struct wg_base_internal* const wg, const char* key, struct wg_base_internal* const obj)
 {
-    if (wg->class == WG_ZONE &&
+    if (wg->engine_type == WG_ZONE &&
         strcmp(key, "drop_start") == 0)
         ((struct wg_zone_internal* const)wg)->nominated = true;
 
-    if (wg->class == WG_PIECE &&
+    if (wg->engine_type == WG_PIECE &&
         ((struct wg_piece_internal* const)wg)->zone &&
         strcmp(key, "drop_start") == 0)
         ((struct wg_piece_internal* const)wg)->zone->nominated = true;
@@ -712,11 +981,11 @@ static void call_drop_start(struct wg_base_internal* const wg, const char* key, 
 
 static void call_drop_end(struct wg_base_internal* const wg, const char* key, struct wg_base_internal* const obj)
 {
-    if (wg->class == WG_ZONE &&
+    if (wg->engine_type == WG_ZONE &&
         strcmp(key, "drop_end") == 0)
         ((struct wg_zone_internal* const)wg)->nominated = false;
 
-    if (wg->class == WG_PIECE &&
+    if (wg->engine_type == WG_PIECE &&
         ((struct wg_piece_internal* const)wg)->zone &&
         strcmp(key, "drop_end") == 0)
         ((struct wg_piece_internal* const)wg)->zone->nominated = false;
@@ -724,10 +993,10 @@ static void call_drop_end(struct wg_base_internal* const wg, const char* key, st
 
 static void call_drag_end_drop(struct wg_base_internal* const wg, const char* key, struct wg_base_internal* const obj)
 {
-    if (wg->class == WG_ZONE &&
+    if (wg->engine_type == WG_ZONE &&
         strcmp(key, "drag_end_drop") == 0)
     {
-        if (obj->class != WG_PIECE)
+        if (obj->engine_type != WG_PIECE)
             return;
 
         struct wg_zone_internal* const zone = (struct wg_zone_internal* const) wg;
@@ -751,13 +1020,13 @@ static void call_drag_end_drop(struct wg_base_internal* const wg, const char* ke
         originating_zone = NULL;
     }
 
-    if (wg->class == WG_PIECE &&
+    if (wg->engine_type == WG_PIECE &&
         strcmp(key, "drag_end_drop") == 0)
     {
         if (!((struct wg_piece_internal* const)wg)->zone)
             return;
 
-        if (obj->class != WG_PIECE)
+        if (obj->engine_type != WG_PIECE)
             return;
 
         // I love typecasting
@@ -787,8 +1056,8 @@ static void call_drag_end_drop(struct wg_base_internal* const wg, const char* ke
     do{ \
         call_hover_start(widget, #method);\
         call_hover_end(widget, #method);\
-        if((widget)->jumptable.base-> ## method)\
-			(widget)->jumptable.base-> ## method(downcast(widget)); \
+        if((widget)->jumptable-> ## method)\
+			(widget)->jumptable-> ## method(downcast(widget)); \
         call_lua(widget, #method, NULL);\
     }while(0); 
 
@@ -797,8 +1066,8 @@ static void call_drag_end_drop(struct wg_base_internal* const wg, const char* ke
         call_drop_start(widget, #method,obj);\
         call_drop_end(widget, #method,obj);\
 		call_drag_end_drop(widget, #method, obj);\
-        if((widget)->jumptable.base-> ## method)\
-			(widget)->jumptable.base-> ## method(downcast(widget),downcast(obj)); \
+        if((widget)->jumptable-> ## method)\
+			(widget)->jumptable-> ## method(downcast(widget),downcast(obj)); \
         call_lua(widget, #method, obj);\
      }while(0); 
 
@@ -828,52 +1097,6 @@ static void camera_compose_transform(ALLEGRO_TRANSFORM* const trans, const doubl
 }
 
 /*********************************************/
-/*           Widget Engine State             */
-/*********************************************/
-
-static enum {
-    ENGINE_STATE_IDLE,                  // Idle state.
-    ENGINE_STATE_HOVER,                 // A widget is being hovered but the mouse is up.
-    ENGINE_STATE_PRE_DRAG_THRESHOLD,    // Inbetween mouse down and callback (checking if click or drag).
-    ENGINE_STATE_POST_DRAG_THRESHOLD,   // The drag threshold has been reached but the widget can't be dragged.
-    ENGINE_STATE_DRAG,                  // A widget is getting dragged and is located on the mouse.
-    ENGINE_STATE_TO_DRAG,               // A widget is getting dragged and is moving towards the mouse.
-    ENGINE_STATE_TO_SNAP,               // A widget is getting dragged and is mocing towards the snap.
-    ENGINE_STATE_SNAP,                  // A widget is getting dragged and is located on the snap.
-    ENGINE_STATE_EMPTY_DRAG,            // Drag but without a widget underneath. Used to control camera.
-    ENGINE_STATE_TABBED_OUT             // The engine has been tabbed out from.
-} widget_engine_state;
-
-static double transition_timestamp;
-
-static const char* engine_state_str[] = {
-       "Idle",
-       "Hover",
-       "Click (Pre-Threshold)",
-       "Click (Post-Threshold)",
-       "Drag",
-       "To Drag",
-       "To Snap",
-       "Snap",
-       "Empty Drag",
-       "Tabbed Out"
-};
-
-// Whether the current_hover should be rendered ontop of other widgets.
-static bool hover_on_top()
-{
-    return widget_engine_state == ENGINE_STATE_DRAG ||
-        widget_engine_state == ENGINE_STATE_SNAP ||
-        widget_engine_state == ENGINE_STATE_TO_SNAP ||
-        widget_engine_state == ENGINE_STATE_TO_DRAG;
-}
-
-// Click, Drag, and Drop pointers
-static struct wg_base_internal* last_click;
-static struct wg_base_internal* current_hover;
-static struct wg_base_internal* current_drop;
-
-/*********************************************/
 /*                  Shaders                  */
 /*********************************************/
 
@@ -896,8 +1119,7 @@ static inline struct wg_base_internal* pick(int x, int y)
 
     al_use_shader(offscreen_shader);
 
-    size_t picker_index = 1;
-    size_t pick_buffer;
+    picker_index = 1;
     float color_buffer[3];
 
     const bool hide_hover = hover_on_top();
@@ -905,26 +1127,11 @@ static inline struct wg_base_internal* pick(int x, int y)
     if (hide_hover)
         queue_pop(current_hover);
 
-    for (size_t type = 0; type < WG_CLASS_CNT; type++)
-		for (struct wg_base_internal* wg = queue_head[type]; wg; wg = wg->next, picker_index++)
-		{
-			pick_buffer = picker_index;
-
-			for (size_t i = 0; i < 3; i++)
-			{
-				color_buffer[i] = ((float)(pick_buffer % 200)) / 200;
-				pick_buffer /= 200;
-			}
-
-			al_set_shader_float_vector("picker_color", 3, color_buffer, 1);
-
-			ALLEGRO_TRANSFORM buffer;
-			keyframe_build_transform((const struct keyframe* const)get_keyframe(wg), &buffer);
-			camera_compose_transform(&buffer, wg->c);
-			al_use_transform(&buffer);
-
-			wg->jumptable.base->mask(downcast(wg));
-		}
+    struct work_queue* const work = containter_mask(cr_zones);
+    work_queue_concatenate(work, containter_mask(cr_pieces));
+    work_queue_concatenate(work, containter_mask(cr_hud));
+    work_queue_run(work);
+    free(work);
 
     al_set_target_bitmap(original_bitmap);
 
@@ -943,15 +1150,7 @@ static inline struct wg_base_internal* pick(int x, int y)
         return NULL;
     }
 
-    struct wg_base_internal* widget = NULL;
-
-    for (size_t type = 0; type < WG_CLASS_CNT && index > 0; type++)
-    {
-        widget = queue_head[type];
-
-        while (widget && index-- > 1)
-            widget = widget->next;
-    }
+    struct wg_base_internal* widget = engine_mask_select(index);
 
     if (hide_hover)
         queue_insert(current_hover, current_hover->next);
@@ -1089,7 +1288,7 @@ static void draw_widget(const struct wg_base_internal* const wg)
     material_apply(NULL);
     glDisable(GL_STENCIL_TEST);
 
-    wg->jumptable.base->draw((const struct wg_base* const) downcast(wg));
+    wg->jumptable->draw((const struct wg_base* const) downcast(wg));
 
 #ifdef WIDGET_DEBUG_DRAW
     al_draw_textf(debug_font, al_map_rgb_f(0, 1, 0), 10, 10, ALLEGRO_ALIGN_LEFT,
@@ -1222,7 +1421,7 @@ void widget_screen_to_local(const struct wg_base* const wg, double* x, double* y
 // Check that a widget has the right jumptable
 struct wg_base* check_widget(struct wg_base* wg, const struct wg_jumptable_base* const jumptable)
 {
-    return ((get_internal(wg))->jumptable.base == jumptable) ? wg : NULL;
+    return ((get_internal(wg))->jumptable == jumptable) ? wg : NULL;
 }
 
 struct wg_base* check_widget_lua(int idx, const struct wg_jumptable_base* const jumptable)
@@ -1232,7 +1431,7 @@ struct wg_base* check_widget_lua(int idx, const struct wg_jumptable_base* const 
 
     struct wg_base_internal* wg = (struct wg_base_internal*) luaL_checkudata(lua_state, idx, "widget_mt");
 
-    if (!wg || wg->jumptable.base != jumptable)
+    if (!wg || wg->jumptable != jumptable)
         return NULL;
 
     return downcast(wg);
@@ -1315,9 +1514,11 @@ void widget_engine_draw()
         queue_pop(current_hover);
 
     // Maybe add a second pass for stencil effect?
-    for (enum wg_class class = WG_CLASS_START; class < WG_CLASS_END; class++)
-		for (struct wg_base_internal* widget = queue_head[class]; widget; widget = widget->next)
-			draw_widget((struct wg_base_internal*) widget);
+    struct work_queue* const work = containter_draw(cr_zones);
+    work_queue_concatenate(work, containter_draw(cr_pieces));
+    work_queue_concatenate(work, containter_draw(cr_hud));
+    work_queue_run(work);
+    free(work);
 
     if (hide_hover)
     {
@@ -1350,9 +1551,6 @@ void widget_engine_draw()
     al_draw_textf(debug_font, al_map_rgb_f(0, 1, 0), 10, 100, ALLEGRO_ALIGN_LEFT,
         "Drag Release: (%f, %f) %f (%f, %f)", drag_release.x, drag_release.y,
         drag_release.t, drag_release.dx, drag_release.dy);
-    al_draw_textf(debug_font, al_map_rgb_f(0, 1, 0), 10, 130, ALLEGRO_ALIGN_LEFT,
-        "Head: %p, Tail: %p",
-        queue_head, queue_tail);
 #endif
 }
 
@@ -1421,20 +1619,11 @@ void widget_engine_update()
 struct work_queue* widget_engine_widget_work()
 {
     // Since the update method doesn't change maybe we should have a static queue?
+    struct work_queue* const work = containter_update(cr_zones);
+    work_queue_concatenate(work, containter_update(cr_pieces));
+    work_queue_concatenate(work, containter_update(cr_hud));
 
-    struct work_queue* work_queue = work_queue_create();
-
-	for (enum wg_class class = WG_CLASS_START; class < WG_CLASS_END; class++)
-		for (struct wg_base_internal* widget = queue_head[class]; widget; widget = widget->next)
-		{
-			work_queue_push(work_queue,tweener_blend,widget);
-
-			if(widget_engine_state != ENGINE_STATE_TABBED_OUT &&
-                widget->jumptable.base->update)
-				work_queue_push(work_queue, widget->jumptable.base->update, downcast(widget));
-		}
-
-    return work_queue;
+    return work;
 }
 
 // Handle events by calling all widgets that have a event handler.
@@ -1448,10 +1637,11 @@ void widget_engine_event_handler()
         else
             widget_engine_state = ENGINE_STATE_IDLE;
 
-    for (enum wg_class class = WG_CLASS_START; class < WG_CLASS_END; class++)
-		for (struct wg_base_internal* widget = queue_head[class]; widget; widget = widget->next)
-			if(widget->jumptable.base->event_handler)
-				widget->jumptable.base->event_handler(downcast(widget));
+    struct work_queue* const work = containter_event_handler(cr_zones);
+    work_queue_concatenate(work, containter_event_handler(cr_pieces));
+    work_queue_concatenate(work, containter_event_handler(cr_hud));
+    work_queue_run(work);
+    free(work);
 
     switch (current_event.type)
     {
@@ -1561,7 +1751,7 @@ static int push_type(lua_State* L)
 {
     struct wg_base_internal* const wg = (struct wg_base_internal*)luaL_checkudata(L, -2, "widget_mt");
 
-    lua_pushlightuserdata(L, wg->jumptable.base);
+    lua_pushlightuserdata(L, wg->jumptable);
 
     return 1;
 }
@@ -1571,11 +1761,11 @@ static int push_class(lua_State* L)
 {
     struct wg_base_internal* const wg = (struct wg_base_internal*)luaL_checkudata(L, -2, "widget_mt");
 
-    if (wg->class == WG_ZONE)
+    if (wg->engine_type == WG_ZONE)
         lua_pushstring(L, "zone");
-    else if (wg->class == WG_PIECE)
+    else if (wg->engine_type == WG_PIECE)
         lua_pushstring(L, "piece");
-    else if (wg->class == WG_HUD)
+    else if (wg->engine_type == WG_HUD)
         lua_pushstring(L, "hud");
     else
         lua_pushnil(L);
@@ -1621,10 +1811,10 @@ static int gc(lua_State* L)
     // This means a hover_start can be called without an accompaning hover_end.
     struct wg_base_internal* const wg = (struct wg_base_internal*)luaL_checkudata(L, 1, "widget_mt");
 
-    if (wg->jumptable.base->gc)
-        wg->jumptable.base->gc(downcast(wg));
+    if (wg->jumptable->gc)
+        wg->jumptable->gc(downcast(wg));
 
-    if (wg->class == WG_ZONE)
+    if (wg->engine_type == WG_ZONE)
         free(((struct wg_zone_internal* const)wg)->pieces);
 
     // Make sure we don't get stale pointers
@@ -1678,7 +1868,7 @@ static int index(lua_State* L)
             return 1;
         }
 
-        if (wg->class == WG_ZONE)
+        if (wg->engine_type == WG_ZONE)
         {
             struct wg_zone_internal* const zone = (struct wg_zone_internal* const) wg;
 
@@ -1698,7 +1888,7 @@ static int index(lua_State* L)
                 return 1;
             }
         }
-        else if (wg->class == WG_PIECE)
+        else if (wg->engine_type == WG_PIECE)
         {
             struct wg_piece_internal* const piece = (struct wg_piece_internal* const)wg;
 
@@ -1713,9 +1903,9 @@ static int index(lua_State* L)
         }
     }
 
-    if (wg->jumptable.base->index)
+    if (wg->jumptable->index)
     {
-        const int output = wg->jumptable.base->index(L);
+        const int output = wg->jumptable->index(L);
 
         if (output >= 0)
             return output;
@@ -1737,9 +1927,9 @@ static int newindex(lua_State* L)
 {
     struct wg_base_internal* const wg = (struct wg_base_internal*)luaL_checkudata(L, -3, "widget_mt");
 
-    if (wg->jumptable.base->newindex)
+    if (wg->jumptable->newindex)
     {
-        const int output = wg->jumptable.base->newindex(L);
+        const int output = wg->jumptable->newindex(L);
 
         if (output >= 0)
             return output;
@@ -1757,8 +1947,9 @@ static int newindex(lua_State* L)
 /*              Widgets Methods              */
 /*********************************************/
 
+/*
 // TODO: Add type mask
-static bool widgets_class_mask[WG_CLASS_CNT];
+static bool widgets_class_mask[WG_CNT];
 
 static int widgets_setmask(lua_State* L)
 {
@@ -1842,6 +2033,7 @@ static int widgets_filter(lua_State* L)
 
     return 1;
 }
+*/
 
 static int widgets_remove(lua_State* L)
 {
@@ -1867,6 +2059,7 @@ static void widgets_init()
     lua_pushvalue(lua_state, -1);
     lua_setfield(lua_state, -2, "__index");
 
+    /*
     lua_pushcfunction(lua_state, widgets_iter);
     lua_setfield(lua_state, -2, "iter");
 
@@ -1875,6 +2068,7 @@ static void widgets_init()
 
     lua_pushcfunction(lua_state, widgets_setmask);
     lua_setfield(lua_state, -2, "mask");
+    */
 
     lua_pushcfunction(lua_state, widgets_remove);
     lua_setfield(lua_state, -2, "remove");
@@ -1889,8 +2083,10 @@ static void widgets_init()
     lua_setmetatable(lua_state, -2);
     lua_setglobal(lua_state, "widgets");
 
+    /*
     for(size_t class = 0; class < WG_CLASS_CNT; class++)
 		widgets_class_mask[class] = true;
+        */
 }
 
 /*********************************************/
@@ -1928,12 +2124,10 @@ static void style_init()
 void widget_engine_init()
 {
     // Set empty pointers to NULL
-    for (size_t class = 0; class < WG_CLASS_CNT; class++)
-    {
-        queue_head[class] = NULL;
-        queue_tail[class] = NULL;
-    }
-
+    cr_zones = container_init();
+    cr_pieces = container_init();
+    cr_hud = container_init();
+ 
     current_drop = NULL;
     current_hover = NULL;
     last_click = NULL;
@@ -1979,23 +2173,27 @@ void widget_engine_init()
     lua_pop(lua_state, 1);
 }
 
-static struct wg_base_internal* wg_alloc(enum wg_class class, size_t size)
+static struct wg_base_internal* wg_alloc(enum node_type engine_type, size_t size)
 {
-    struct wg_base_internal* const widget = lua_newuserdata(lua_state, size + sizeof(struct wg_header));
+    size += sizeof(struct engine_node);
+    size += sizeof(struct wg_jumptable_base*);
+
+    struct wg_base_internal* const widget = lua_newuserdata(lua_state, size);
 
     if (!widget)
         return NULL;
 
     *widget = (struct wg_base_internal)
     {
-        .class = class,
+        .engine_type = engine_type,
         .next = NULL,
-        .previous = queue_tail[class],
+        .parent = get_top_cr(engine_type),
+        .previous = get_top_cr(engine_type)->tail,
     };
 
     keyframe_default((struct keyframe* const)get_keyframe(widget));
 
-    switch (class)
+    switch (engine_type)
     {
     case WG_HUD:
         widget->c = 0;
@@ -2020,12 +2218,12 @@ static struct wg_base_internal* wg_alloc(enum wg_class class, size_t size)
     lua_pop(lua_state, 1);
 
     // Wire the widget into the queue
-    if (queue_tail[class])
-        queue_tail[class]->next = widget;
+    if (get_top_cr(engine_type)->tail)
+        get_top_cr(engine_type)->tail->next = widget;
     else
-        queue_head[class] = widget;
+        get_top_cr(engine_type)->head = widget;
 
-    queue_tail[class] = widget;
+    get_top_cr(engine_type)->tail = widget;
     
     if (LUA_TTABLE == lua_type(lua_state, -2))
     {
@@ -2076,7 +2274,7 @@ struct wg_zone* wg_alloc_zone(size_t size, struct wg_jumptable_zone* jumptable)
 
     wg->draggable = false;
     wg->snappable = false;
-    wg->jumptable.zone = (struct wg_jumptable_zone*)jumptable;
+    wg->jumptable = (struct wg_jumptable_zone*)jumptable;
 
     wg->valid_move = false;
     wg->highlighted = false;
@@ -2095,7 +2293,7 @@ struct wg_piece* wg_alloc_piece(size_t size, struct wg_jumptable_piece* jumptabl
 
     wg->draggable = true;
     wg->snappable = false;
-    wg->jumptable.piece = (struct wg_jumptable_piece*)jumptable;
+    wg->jumptable = (struct wg_jumptable_piece*)jumptable;
 
     wg->zone = NULL;
 
@@ -2108,7 +2306,7 @@ struct wg_hud* wg_alloc_hud(size_t size, struct wg_jumptable_hud* jumptable)
 
     wg->draggable = false;
     wg->snappable = false;
-    wg->jumptable.hud = jumptable;
+    wg->jumptable = jumptable;
 
     wg->hud_state = HUD_IDLE;
     wg->pallet = &primary_pallet;
