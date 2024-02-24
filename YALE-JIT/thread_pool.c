@@ -76,7 +76,8 @@ void work_queue_concatenate(struct work_queue* dst, struct work_queue* src)
 	else
 		dst->first = src->first;
 
-	dst->last = src->last;
+	if(src->last)
+		dst->last = src->last;
 
 	free(src);
 }
@@ -268,7 +269,8 @@ void thread_pool_concatenate(struct work_queue* queue)
 			thread_pool.queue.first = queue->first;
 		}
 
-		thread_pool.queue.last = queue->last;
+		if(queue->last)
+			thread_pool.queue.last = queue->last;
 
 		al_signal_cond(thread_pool.pending_work_cond);
 		al_unlock_mutex(thread_pool.read_write_mutex);
