@@ -39,10 +39,15 @@ extern lua_State* const lua_state;
 extern ALLEGRO_FONT* debug_font;
 
 /*********************************************/
-/*              Utility Structs              */
+/*   Memory Layout and Pointer Arithmetic    */
 /*********************************************/
 
-enum node_type
+// Header
+// Base (first entry is keyframe)
+// Zone/Piece Particulars 
+// General Particulars
+
+enum en_type
 {
     WG_BASE,
     WG_ZONE,
@@ -53,9 +58,9 @@ enum node_type
 
 struct engine_node
 {
-    enum node_type engine_type;
+    enum en_type engine_type;
 
-    struct engine_node* parent;
+    struct cr_base* parent;
     struct engine_node* next;
     struct engine_node* previous;
 
@@ -71,45 +76,23 @@ struct engine_node
     }tweener;
 };
 
-static bool engine_node_is_widget(struct engine_node* node)
-{
-    return (node->engine_type == WG_BASE 
-        || node->engine_type == WG_ZONE
-        || node->engine_type == WG_PIECE
-        || node->engine_type == WG_HUD);
-}
-
-static bool engine_node_is_container(struct engine_node* node)
-{
-    return (node->engine_type == CR_BASE);
-}
-
-/*********************************************/
-/*            Widget Memory Layout           */
-/*********************************************/
-
-// Header
-// Base (first entry is keyframe)
-// Zone/Piece Particulars 
-// General Particulars
-
 struct wg_base_internal
 {
-	struct engine_node;
+    struct engine_node;
     struct wg_jumptable_base* jumptable;
     struct wg_base;
 };
 
 struct wg_zone_internal
 {
-	struct engine_node; 
+    struct engine_node;
     struct wg_jumptable_zone* jumptable;
     struct wg_zone;
 };
 
 struct wg_piece_internal
 {
-	struct engine_node;
+    struct engine_node;
     struct wg_jumptable_piece* jumptable;
     struct wg_piece;
 };
@@ -121,178 +104,55 @@ struct wg_hud_internal
     struct wg_hud;
 };
 
-static inline struct wg_base_internal* get_internal(struct wg_base* base)
+struct cr_base
 {
-     return (struct wg_base_internal*) ((char*) base - sizeof(struct engine_node) - sizeof(struct wg_jumptable_base*));
+    struct engine_node;
+    struct wg_base;
+
+    struct engine_node* head;
+    struct engine_node* tail;
+};
+
+static bool en_is_widget(struct engine_node* node)
+{
+    return (node->engine_type == WG_BASE 
+        || node->engine_type == WG_ZONE
+        || node->engine_type == WG_PIECE
+        || node->engine_type == WG_HUD);
 }
 
-static inline struct wg_base* downcast(struct wg_base_internal* internal)
+static bool en_is_container(struct engine_node* node)
 {
-    return (struct wg_base*) ((char*)internal + sizeof(struct engine_node) + sizeof(struct wg_jumptable_base*));
+    return (node->engine_type == CR_BASE);
 }
 
-static inline struct keyframe* get_keyframe(struct wg_base_internal* wg)
+static inline struct wg_base* wg_public(struct wg_base_internal* wg)
 {
-    return (struct keyframe*) downcast(wg);
+    return (struct wg_base*)((char*)wg + sizeof(struct engine_node) + sizeof(struct wg_jumptable_base*));
 }
 
-/*********************************************/
-/*              Widget Tweener               */
-/*********************************************/
-
-static void tweener_init(struct engine_node* const wg)
+static inline struct wg_base_internal* wg_internal(struct wg_base* wg)
 {
-    size_t hint = 1;
-
-    wg->tweener.used = 1;
-    wg->tweener.allocated = hint;
-    wg->tweener.keypoints = malloc(hint * sizeof(struct keyframe));
-    wg->tweener.looping_time = -1;
-    wg->tweener.looping_idx = 0;
-
-    keyframe_copy(wg->tweener.keypoints, get_keyframe(wg));
+    return (struct wg_base_internal*)((char*)wg - sizeof(struct engine_node) - sizeof(struct wg_jumptable_base*));
 }
 
-static void tweener_gc(struct engine_node* const wg)
+static inline struct keyframe* wg_keyframe(struct wg_base_internal* wg)
 {
-    free(wg->tweener.keypoints);
+    return (struct keyframe*)wg_public(wg);
 }
 
-static void tweener_blend_nonlooping(struct engine_node* const wg)
+static inline struct keyframe* cr_keyframe(struct cr_base* cr)
 {
-    // Clean old frames
-    size_t first_future_frame = 0;
-
-    while (wg->tweener.keypoints[first_future_frame].t < current_timestamp &&
-        first_future_frame < wg->tweener.used)
-        first_future_frame++;
-
-    if (first_future_frame > 1)
-    {
-        const size_t step = first_future_frame - 1;
-
-        for (size_t i = step; i < wg->tweener.used; i++)
-            keyframe_copy(&(wg->tweener.keypoints[(i - step)]),
-                &(wg->tweener.keypoints[i]));
-
-        wg->tweener.used -= step;
-
-        if (wg->tweener.used == 1)
-        {
-            keyframe_copy(get_keyframe(wg), wg->tweener.keypoints);
-
-            return;
-        }
-    }
-
-    const double denominator = (wg->tweener.keypoints[1].t - wg->tweener.keypoints[0].t);
-    const double blend = (current_timestamp - wg->tweener.keypoints[0].t) / denominator;
-
-    keyframe_blend(get_keyframe(wg), wg->tweener.keypoints + 1, wg->tweener.keypoints, blend);
+    return (struct keyframe*) (((char*) cr) + sizeof(struct engine_node));
 }
 
-static void tweener_blend_looping(struct engine_node* const wg)
+static struct keyframe* en_keyframe(struct engine_node* node)
 {
-    while (wg->tweener.keypoints[wg->tweener.looping_idx].t <= current_timestamp)
-    {
-        const size_t back_idx = (wg->tweener.looping_idx >= 1) ?
-            wg->tweener.looping_idx - 1 : wg->tweener.used - 1;
+    if(en_is_widget(node))
+        return wg_keyframe((struct wg_base_internal*)node);
 
-        wg->tweener.keypoints[back_idx].t += wg->tweener.looping_time;
-
-        wg->tweener.looping_idx = (wg->tweener.looping_idx != SIZE_MAX) ?
-            (wg->tweener.looping_idx + 1) % wg->tweener.used : 0;
-    }
-
-    const size_t end_idx = wg->tweener.looping_idx;
-    const size_t start_idx = (wg->tweener.looping_idx >= 1) ?
-        (wg->tweener.looping_idx - 1) : wg->tweener.used - 1;
-
-    const double blend = (current_timestamp - wg->tweener.keypoints[start_idx].t) /
-        (wg->tweener.keypoints[end_idx].t - wg->tweener.keypoints[start_idx].t);
-
-    keyframe_blend(get_keyframe(wg), wg->tweener.keypoints + 1, wg->tweener.keypoints, blend);
-}
-
-static void tweener_blend(struct engine_node* const wg)
-{
-    if (wg->tweener.used > 1)
-        if (wg->tweener.looping_time > 0)
-            tweener_blend_looping(wg);
-        else
-            tweener_blend_nonlooping(wg);
-}
-
-static void tweener_set(struct engine_node* const wg, struct keyframe* keypoint)
-{
-    wg->tweener.used = 1;
-    wg->tweener.looping_time = -1;
-
-    keyframe_copy(get_keyframe(wg), keypoint);
-    keyframe_copy(wg->tweener.keypoints, keypoint);
-}
-
-static void tweener_push(struct engine_node* const wg, struct keyframe* keypoint)
-{
-    if (keypoint->t - wg->tweener.keypoints[wg->tweener.used - 1].t < 0.01)
-        return;
-
-    if (wg->tweener.allocated <= wg->tweener.used)
-    {
-        const size_t new_cnt = 2 * wg->tweener.allocated;
-
-        struct keyframe* memsafe_hande = realloc(wg->tweener.keypoints, new_cnt * sizeof(struct keyframe));
-
-        // TODO: raise error
-        if (!memsafe_hande)
-            return;
-
-        wg->tweener.keypoints = memsafe_hande;
-        wg->tweener.allocated = new_cnt;
-    }
-
-    if (wg->tweener.used == 1)
-        wg->tweener.keypoints[0].t = current_timestamp;
-
-    keyframe_copy(wg->tweener.keypoints + wg->tweener.used++, keypoint);
-}
-
-static void tweener_interupt(struct engine_node* const wg)
-{
-    if (wg->tweener.used > 1)
-        tweener_blend(wg);
-
-    wg->tweener.used = 1;
-    wg->tweener.looping_time = -1;
-
-    keyframe_copy(wg->tweener.keypoints, get_keyframe(wg));
-}
-
-static void tweener_destination(struct engine_node* const wg, struct keyframe* keypoint)
-{
-    keyframe_copy(keypoint, wg->tweener.keypoints + wg->tweener.used - 1);
-}
-
-static void tweener_enter_loop(struct engine_node* wg, double loop_offset)
-{
-    if (wg->tweener.used < 2)
-        return;
-
-    // TODO: Can optimize using a division to get loops
-    size_t idx = 0;
-    size_t loops = 0;
-    const double loop_time = wg->tweener.keypoints[wg->tweener.used - 1].t - wg->tweener.keypoints[0].t + loop_offset;
-
-    while (wg->tweener.keypoints[idx].t <= current_timestamp - ((double)loops) * loop_time)
-        if (++idx == wg->tweener.used)
-            loops++, idx = 0;
-
-    if (loops)
-        for (size_t i = 0; i < wg->tweener.used; i++)
-            wg->tweener.keypoints[i].t += ((double)loops) * loop_time;
-
-    wg->tweener.looping_idx = idx;
-    wg->tweener.looping_time = loop_time;
+    if (en_is_container(node))
+        return cr_keyframe((struct cr_base*) node);
 }
 
 /*********************************************/
@@ -341,46 +201,361 @@ static struct wg_base_internal* last_click;
 static struct wg_base_internal* current_hover;
 static struct wg_base_internal* current_drop;
 
+static struct cr_base* cr_zones, * cr_pieces, * cr_hud;
+
+/*********************************************/
+/*             Keyframe Tweener              */
+/*********************************************/
+
+static void tweener_init(struct engine_node* const en)
+{
+    size_t hint = 1;
+
+    en->tweener.used = 1;
+    en->tweener.allocated = hint;
+    en->tweener.keypoints = malloc(hint * sizeof(struct keyframe));
+    en->tweener.looping_time = -1;
+    en->tweener.looping_idx = 0;
+
+    keyframe_copy(en->tweener.keypoints, en_keyframe(en));
+}
+
+static void tweener_gc(struct engine_node* const en)
+{
+    free(en->tweener.keypoints);
+}
+
+static void tweener_blend_nonlooping(struct engine_node* const en)
+{
+    // Clean old frames
+    size_t first_future_frame = 0;
+
+    while (en->tweener.keypoints[first_future_frame].t < current_timestamp &&
+        first_future_frame < en->tweener.used)
+        first_future_frame++;
+
+    if (first_future_frame > 1)
+    {
+        const size_t step = first_future_frame - 1;
+
+        for (size_t i = step; i < en->tweener.used; i++)
+            keyframe_copy(&(en->tweener.keypoints[(i - step)]),
+                &(en->tweener.keypoints[i]));
+
+        en->tweener.used -= step;
+
+        if (en->tweener.used == 1)
+        {
+            keyframe_copy(en_keyframe(en), en->tweener.keypoints);
+
+            return;
+        }
+    }
+
+    const double denominator = (en->tweener.keypoints[1].t - en->tweener.keypoints[0].t);
+    const double blend = (current_timestamp - en->tweener.keypoints[0].t) / denominator;
+
+    keyframe_blend(en_keyframe(en), en->tweener.keypoints + 1, en->tweener.keypoints, blend);
+}
+
+static void tweener_blend_looping(struct engine_node* const en)
+{
+    while (en->tweener.keypoints[en->tweener.looping_idx].t <= current_timestamp)
+    {
+        const size_t back_idx = (en->tweener.looping_idx >= 1) ?
+            en->tweener.looping_idx - 1 : en->tweener.used - 1;
+
+        en->tweener.keypoints[back_idx].t += en->tweener.looping_time;
+
+        en->tweener.looping_idx = (en->tweener.looping_idx != SIZE_MAX) ?
+            (en->tweener.looping_idx + 1) % en->tweener.used : 0;
+    }
+
+    const size_t end_idx = en->tweener.looping_idx;
+    const size_t start_idx = (en->tweener.looping_idx >= 1) ?
+        (en->tweener.looping_idx - 1) : en->tweener.used - 1;
+
+    const double blend = (current_timestamp - en->tweener.keypoints[start_idx].t) /
+        (en->tweener.keypoints[end_idx].t - en->tweener.keypoints[start_idx].t);
+
+    keyframe_blend(en_keyframe(en), en->tweener.keypoints + 1, en->tweener.keypoints, blend);
+}
+
+static void tweener_blend(struct engine_node* const en)
+{
+    if (en->tweener.used > 1)
+        if (en->tweener.looping_time > 0)
+            tweener_blend_looping(en);
+        else
+            tweener_blend_nonlooping(en);
+}
+
+static void tweener_set(struct engine_node* const en, struct keyframe* keypoint)
+{
+    en->tweener.used = 1;
+    en->tweener.looping_time = -1;
+
+    keyframe_copy(en_keyframe(en), keypoint);
+    keyframe_copy(en->tweener.keypoints, keypoint);
+}
+
+static void tweener_push(struct engine_node* const en, struct keyframe* keypoint)
+{
+    if (keypoint->t - en->tweener.keypoints[en->tweener.used - 1].t < 0.01)
+        return;
+
+    if (en->tweener.allocated <= en->tweener.used)
+    {
+        const size_t new_cnt = 2 * en->tweener.allocated;
+
+        struct keyframe* memsafe_hande = realloc(en->tweener.keypoints, new_cnt * sizeof(struct keyframe));
+
+        // TODO: raise error
+        if (!memsafe_hande)
+            return;
+
+        en->tweener.keypoints = memsafe_hande;
+        en->tweener.allocated = new_cnt;
+    }
+
+    if (en->tweener.used == 1)
+        en->tweener.keypoints[0].t = current_timestamp;
+
+    keyframe_copy(en->tweener.keypoints + en->tweener.used++, keypoint);
+}
+
+static void tweener_interupt(struct engine_node* const en)
+{
+    if (en->tweener.used > 1)
+        tweener_blend(en);
+
+    en->tweener.used = 1;
+    en->tweener.looping_time = -1;
+
+    keyframe_copy(en->tweener.keypoints, en_keyframe(en));
+}
+
+static void tweener_destination(struct engine_node* const en, struct keyframe* keypoint)
+{
+    keyframe_copy(keypoint, en->tweener.keypoints + en->tweener.used - 1);
+}
+
+static void tweener_enter_loop(struct engine_node* en, double loop_offset)
+{
+    if (en->tweener.used < 2)
+        return;
+
+    // TODO: Can optimize using a division to get loops
+    size_t idx = 0;
+    size_t loops = 0;
+    const double loop_time = en->tweener.keypoints[en->tweener.used - 1].t - en->tweener.keypoints[0].t + loop_offset;
+
+    while (en->tweener.keypoints[idx].t <= current_timestamp - ((double)loops) * loop_time)
+        if (++idx == en->tweener.used)
+            loops++, idx = 0;
+
+    if (loops)
+        for (size_t i = 0; i < en->tweener.used; i++)
+            en->tweener.keypoints[i].t += ((double)loops) * loop_time;
+
+    en->tweener.looping_idx = idx;
+    en->tweener.looping_time = loop_time;
+}
+
+/*********************************************/
+/*               LUA Utility                 */
+/*********************************************/
+
+static void lua_pushenginenode(lua_State* L, struct engine_node* en)
+{
+    if (!en->parent)
+    {
+        lua_pushlightuserdata(L, en);
+        lua_gettable(L, LUA_REGISTRYINDEX);
+
+        return;
+    }
+
+    lua_pushenginenode(L, en->parent);
+    lua_getfenv(L, -1);
+    lua_getfield(L, -1, "content");
+    lua_pushlightuserdata(L, en);
+    lua_gettable(L, -2);
+
+    lua_replace(L, -4);
+    lua_pop(L, 2);
+}
+
+/*********************************************/
+/*                   Camera                  */
+/*********************************************/
+
+static struct wg_base_internal camera;
+
+static void camera_compose_transform(ALLEGRO_TRANSFORM* const trans, const double blend)
+{
+    ALLEGRO_TRANSFORM buffer;
+
+    const double blend_x = camera.x * blend;
+    const double blend_y = camera.y * blend;
+    const double blend_sx = camera.sx * blend + (1 - blend);
+    const double blend_sy = camera.sy * blend + (1 - blend);
+    const double blend_a = camera.a * blend;
+
+    al_build_transform(&buffer,
+        blend_x, blend_y,
+        blend_sx, blend_sy,
+        blend_a);
+
+    al_compose_transform(trans, &buffer);
+}
+
 /*********************************************/
 /*             Container Methods             */
 /*********************************************/
 
-struct cr_base
+static void cr_append(struct cr_base* cr, struct engine_node* en)
 {
-    struct engine_node;
-    struct wg_base;
+    if (cr->tail)
+        cr->tail->next = en;
+    else
+        cr->head = en;
 
-    struct engine_node* head;
-    struct engine_node* tail;
-};
+    en->parent = cr;
+    en->previous = cr->tail;
 
-static struct cr_base* cr_zones, *cr_pieces, *cr_hud;
+    cr->tail = en;
 
-static struct cr_base* get_top_cr(enum node_type type)
+    lua_pushenginenode(lua_state, cr);
+    lua_getfenv(lua_state, -1);
+    lua_getfield(lua_state, -1, "content");
+    lua_pushlightuserdata(lua_state, en);
+    lua_pushenginenode(lua_state, en);
+    lua_settable(lua_state, -3);
+
+    lua_pop(lua_state, 3);
+}
+
+static int cr_new(lua_State* L)
 {
-    switch (type)
+    if (!lua_istable(L, -1))
+        lua_createtable(L, 0, 0);
+
+    struct cr_base* cr = lua_newuserdata(L, sizeof(struct cr_base));
+
+    *cr = (struct cr_base)
     {
-    case WG_ZONE:
-        return cr_zones;
-    case WG_PIECE:
-        return cr_pieces;
-    case WG_HUD:
-        return cr_hud;
+        .engine_type = CR_BASE,
+    };
+
+    cr_append(lua_topointer(L, -3), (struct engine_node*) cr);
+
+    // Set metatable
+    luaL_getmetatable(L, "container_mt");
+    lua_setmetatable(L, -2);
+
+    // Empty content 
+    lua_newtable(L);
+    lua_setfield(L, -3, "content");
+
+    lua_newtable(L);
+
+    lua_pushnil(L);
+
+    while (lua_next(L, -5))
+    {
+        lua_pushvalue(L, -2);
+        lua_pushvalue(L, -2);
+        lua_settable(L, -5);
+        lua_pop(L, 1);
+    }
+    lua_setfield(L, -3, "constructors");
+
+    // Set fenv
+    lua_pushvalue(lua_state, -2);
+    lua_setfenv(lua_state, -2);
+
+    tweener_init((struct engine_node*) cr);
+
+    return 1;
+}
+
+// Pop an engine node out of the engine
+static void queue_pop(struct engine_node* const en)
+{
+    struct cr_base* parent = en->parent;
+
+    if (en->next)
+        en->next->previous = en->previous;
+    else if (parent && parent->tail == en)
+        parent->tail = en->previous;
+
+    if (en->previous)
+        en->previous->next = en->next;
+    else if (parent && parent->head == en)
+        parent->head = en->next;
+
+    lua_pushenginenode(lua_state, (struct engine_node*)parent);
+    lua_getfenv(lua_state, -1);
+    lua_getfield(lua_state, -1, "content");
+    lua_pushlightuserdata(lua_state, en);
+    lua_pushnil(lua_state);
+    lua_settable(lua_state, -3);
+
+    lua_pop(lua_state, 3);
+}
+
+// Insert the first widget behind the second
+static void queue_insert(struct engine_node* mover, struct engine_node* target)
+{
+    // TODO: Add some type checking, not every mover type should be able to go with every target type.
+    // Preformance issue, usesd in the drawing loop. (But only twice).
+
+    // Assumes mover is outside the list.
+    // I.e. that mover's previous is null.
+    mover->next = target;
+
+    struct cr_base* parent = mover->parent;
+
+    // If the second is null append the first to the head
+    if (target)
+    {
+        if (target->previous)
+            target->previous->next = mover;
+        else if (target->parent)
+            target->parent->head = mover;
+
+        target->previous = mover;
+
+        lua_pushenginenode(lua_state, (struct engine_node*)target->parent);
+        lua_getfenv(lua_state, -1);
+        lua_getfield(lua_state, -1, "content");
+        lua_pushlightuserdata(lua_state, mover);
+        lua_pushnil(lua_state);
+        lua_settable(lua_state, -3);
+
+        lua_pop(lua_state, 3);
+    }
+    else if (parent)
+    {
+        mover->previous = parent->tail;
+
+        if (parent->tail)
+            parent->tail->next = mover;
+        else
+            parent->head = mover;
+
+        parent->tail = mover;
     }
 
-    return NULL;
+
 }
 
-static struct cr_base* container_init()
-{
-    struct cr_base* cr = calloc(sizeof(struct cr_base),1);
+/*********************************************/
+/*            Container Big Four             */
+/*********************************************/
 
-    tweener_init(cr);
-
-    return cr;
-}
-
-static struct work_queue* containter_update(struct cr_base* cr)
+static struct work_queue* container_update(struct cr_base* cr)
 {
     struct work_queue* work = work_queue_create();
     
@@ -388,19 +563,45 @@ static struct work_queue* containter_update(struct cr_base* cr)
 
     while (node)
     {
-        if (engine_node_is_widget(node))
+        if (en_is_widget(node))
         {
             work_queue_push(work, tweener_blend, node);
             struct wg_base_internal* wg = (struct wg_base_internal*) node;
 
             if (widget_engine_state != ENGINE_STATE_TABBED_OUT &&
                 wg->jumptable->update)
-                work_queue_push(work, wg->jumptable->update, downcast(wg));
+                work_queue_push(work, wg->jumptable->update, wg_public(wg));
         }
 
-        if (engine_node_is_container(node))
+        if (en_is_container(node))
         {
-            work_queue_concatenate(work, containter_update(node));
+            work_queue_concatenate(work, container_update(node));
+        }
+
+        node = node->next;
+    }
+
+    return work;
+}
+
+static struct work_queue* container_event_handler(struct cr_base* cr)
+{
+    struct work_queue* work = work_queue_create();
+
+    struct engine_node* node = (struct engine_node*)cr->head;
+
+    while (node)
+    {
+        if (en_is_widget(node))
+        {
+            struct wg_base_internal* wg = (struct wg_base_internal*)node;
+            if (wg->jumptable->event_handler)
+                work_queue_push(work, wg->jumptable->event_handler, wg_public(wg));
+        }
+
+        if (en_is_container(node))
+        {
+            work_queue_concatenate(work, container_event_handler(node));
         }
 
         node = node->next;
@@ -411,7 +612,7 @@ static struct work_queue* containter_update(struct cr_base* cr)
 
 static void draw_widget(const struct wg_base_internal* const);
 
-static struct work_queue* containter_draw(struct cr_base* cr)
+static struct work_queue* container_draw(struct cr_base* cr)
 {
     struct work_queue* work = work_queue_create();
 
@@ -419,15 +620,15 @@ static struct work_queue* containter_draw(struct cr_base* cr)
 
     while (node)
     {
-        if (engine_node_is_widget(node))
+        if (en_is_widget(node))
         {
             struct wg_base_internal* wg = (struct wg_base_internal*)node;
             work_queue_push(work, draw_widget, wg);
         }
 
-        if (engine_node_is_container(node))
+        if (en_is_container(node))
         {
-            work_queue_concatenate(work, containter_draw(node));
+            work_queue_concatenate(work, container_draw(node));
         }
 
         node = node->next;
@@ -436,35 +637,8 @@ static struct work_queue* containter_draw(struct cr_base* cr)
     return work;
 }
 
-static struct work_queue* containter_event_handler(struct cr_base* cr)
-{
-    struct work_queue* work = work_queue_create();
-
-    struct engine_node* node = (struct engine_node*)cr->head;
-
-    while (node)
-    {
-        if (engine_node_is_widget(node))
-        {
-            struct wg_base_internal* wg = (struct wg_base_internal*)node;
-            if(wg->jumptable->event_handler)
-				work_queue_push(work, wg->jumptable->event_handler, downcast(wg));
-        }
-
-        if (engine_node_is_container(node))
-        {
-            work_queue_concatenate(work, containter_event_handler(node));
-        }
-
-        node = node->next;
-    }
-
-    return work;
-}
-
-// Don't think this implemntation
+// Don't like this implementation of container_mask
 size_t picker_index;
-void camera_compose_transform(ALLEGRO_TRANSFORM*,double);
 
 static void mask_widget(struct wg_base_internal* wg)
 {
@@ -480,14 +654,14 @@ static void mask_widget(struct wg_base_internal* wg)
     al_set_shader_float_vector("picker_color", 3, color_buffer, 1);
 
     ALLEGRO_TRANSFORM buffer;
-    keyframe_build_transform((const struct keyframe* const)get_keyframe(wg), &buffer);
+    keyframe_build_transform((const struct keyframe* const)wg_keyframe(wg), &buffer);
     camera_compose_transform(&buffer, wg->c);
     al_use_transform(&buffer);
 
-    wg->jumptable->mask(downcast(wg));
+    wg->jumptable->mask(wg_public(wg));
 }
 
-static struct work_queue* containter_mask(struct cr_base* cr)
+static struct work_queue* container_mask(struct cr_base* cr)
 {
     struct work_queue* work = work_queue_create();
 
@@ -495,15 +669,15 @@ static struct work_queue* containter_mask(struct cr_base* cr)
 
     while (node)
     {
-        if (engine_node_is_widget(node))
+        if (en_is_widget(node))
         {
             struct wg_base_internal* wg = (struct wg_base_internal*)node;
             work_queue_push(work, mask_widget, wg);
         }
 
-        if (engine_node_is_container(node))
+        if (en_is_container(node))
         {
-            work_queue_concatenate(work, containter_mask(node));
+            work_queue_concatenate(work, container_mask(node));
         }
 
         node = node->next;
@@ -518,11 +692,11 @@ static struct engine_node* engine_mask_select_inner(struct cr_base* cr, size_t* 
 
     while (node && *i > 1)
     {
-        if (engine_node_is_widget(node))
+        if (en_is_widget(node))
         {
             node = node->next;
             (* i)--;
-        }else if (engine_node_is_container(node))
+        }else if (en_is_container(node))
             engine_mask_select_inner(node, i);
     }
 
@@ -549,70 +723,6 @@ static struct engine_node* engine_mask_select(size_t i)
         return buffer;
 
     return NULL;
-}
-
-// Pop a widget out of the engine
-static void queue_pop(struct engine_node* const node)
-{
-    struct cr_base* cr = (struct cr_base*)node;
-    struct cr_base* parent = cr->parent;
-    
-    if (cr->next)
-        cr->next->previous = cr->previous;
-    else if(parent && parent->tail == cr)
-        parent->tail = cr->previous;
-
-    if (cr->previous)
-        cr->previous->next = cr->next;
-    else if (parent && parent->head == cr)
-        parent->head = cr->next;
-}
-
-// Insert the first widget behind the second
-static void queue_insert(struct engine_node* mover, struct engine_node* target)
-{
-    // TODO: Add some type checking, not every mover type should be able to go with every target type.
-    // Preformance issue, usesd in the drawing loop. (But only twice).
-
-    // Assumes mover is outside the list.
-    // I.e. that mover's next and previous are null.
-    mover->next = target;
-
-    struct cr_base* parent = mover->parent;
-
-    // If the second is null append the first to the head
-    if (target)
-    {
-        if (target->previous)
-            target->previous->next = mover;
-        else if(target->parent)
-            ((struct cr_base*) target->parent)->head = mover;
-
-        target->previous = mover;
-    }
-    else if(parent)
-    {
-        mover->previous = parent->tail;
-
-        if (parent->tail)
-            parent->tail->next = mover;
-        else
-            parent->head = mover;
-        
-        parent->tail = mover;
-    }
-}
-
-// Move the mover widget behind the target widget.
-void widget_interface_move(struct wg_base* mover, struct wg_base* target)
-{
-    if (mover == target)
-        return;
-
-    // Only this function is visable to the widget writer.
-    // Since poping a widget without calling gc isn't allowed.
-    queue_pop(get_internal(mover));
-    queue_insert(get_internal(mover), get_internal(target));
 }
 
 /*********************************************/
@@ -660,11 +770,11 @@ static void idle_zones_cr(struct cr_base* cr)
                 wg->snappable = false;
 
             if (wg->jumptable->highlight_end)
-                wg->jumptable->highlight_end((struct wg_zone* const)downcast((struct wg_base_internal*)wg));
+                wg->jumptable->highlight_end((struct wg_zone* const)wg_public((struct wg_base_internal*)wg));
 
             wg->highlighted = false;
         }
-        else if (engine_node_is_container(node))
+        else if (en_is_container(node))
             idle_zones_cr(node);
     }
 }
@@ -675,26 +785,23 @@ static void idle_zones()
 
 static void call_moves(struct wg_piece_internal* wg)
 {
-    lua_getglobal(lua_state, "widgets");
     lua_getglobal(lua_state, "moves");
 
     if (!lua_isfunction(lua_state, -1))
     {
-        lua_pop(lua_state, 2);
+        lua_pop(lua_state, 1);
         return;
     }
 
-    lua_pushlightuserdata(lua_state, wg);
-    lua_gettable(lua_state, -3);
+    lua_pushenginenode(lua_state, wg);
 
     if (wg->zone)
     {
-        lua_pushlightuserdata(lua_state, get_internal((struct wg_base*) wg->zone));
-        lua_gettable(lua_state, -4);
+        lua_pushenginenode(lua_state, wg_internal(wg->zone));
 
         if (auto_self_highlight)
         {
-            originating_zone = (struct wg_zone_internal* const)get_internal((struct wg_base*)wg->zone);
+            originating_zone = (struct wg_zone_internal* const)wg_internal((struct wg_base*)wg->zone);
 
             originating_zone->valid_move = true;
 
@@ -703,7 +810,7 @@ static void call_moves(struct wg_piece_internal* wg)
                 originating_zone->highlighted = true;
 
                 if (originating_zone->jumptable->highlight_start)
-                    originating_zone->jumptable->highlight_start((struct wg_zone* const)downcast((struct wg_base_internal*)originating_zone));
+                    originating_zone->jumptable->highlight_start((struct wg_zone* const)wg_public((struct wg_base_internal*)originating_zone));
             }
 
             if (auto_snap)
@@ -748,7 +855,7 @@ static void call_moves(struct wg_piece_internal* wg)
             zone->highlighted = true;
 
             if (zone->jumptable->highlight_start)
-                zone->jumptable->highlight_start((struct wg_zone* const)downcast((struct wg_base_internal*)zone));
+                zone->jumptable->highlight_start((struct wg_zone* const)wg_public((struct wg_base_internal*)zone));
         }
 
         if (auto_snap)
@@ -765,7 +872,7 @@ static void remove_piece(struct wg_zone_internal* const zone, struct wg_piece_in
     size_t i;
 
     for (i = 0; i < zone->used; i++)
-        if (zone->pieces[i] == (struct wg_piece*)downcast((struct wg_base_internal*)piece))
+        if (zone->pieces[i] == (struct wg_piece*)wg_public((struct wg_base_internal*)piece))
             break;
 
     for (size_t j = i + 1; j < zone->used; j++)
@@ -793,22 +900,17 @@ static void append_piece(struct wg_zone_internal* const zone, struct wg_piece_in
         zone->allocated = new_cnt;
     }
 
-    zone->pieces[zone->used++] = (struct wg_piece*)downcast((struct wg_base_internal*)piece);
-    piece->zone = (struct wg_zone*)downcast((struct wg_base_internal*)zone);
+    zone->pieces[zone->used++] = (struct wg_piece*)wg_public((struct wg_base_internal*)piece);
+    piece->zone = (struct wg_zone*)wg_public((struct wg_base_internal*)zone);
 }
 
 // Call the (in)vaild move callback
 static void moves_callback(struct wg_zone_internal* const zone, struct wg_piece_internal* const piece, bool vaild)
 {
-    lua_getglobal(lua_state, "widgets");
-
     if (vaild)
     {
         if (auto_self_highlight && zone == originating_zone)
-        {
-            lua_pop(lua_state, 1);
             return;
-        }
 
         lua_getglobal(lua_state, "vaild_move");
     }
@@ -817,15 +919,12 @@ static void moves_callback(struct wg_zone_internal* const zone, struct wg_piece_
 
     if (!lua_isfunction(lua_state, -1))
     {
-        lua_pop(lua_state, 2);
+        lua_pop(lua_state, 1);
         return;
     }
 
-    lua_pushlightuserdata(lua_state, piece);
-    lua_gettable(lua_state, -3);
-
-    lua_pushlightuserdata(lua_state, zone);
-    lua_gettable(lua_state, -4);
+    lua_pushenginenode(lua_state, piece);
+    lua_pushenginenode(lua_state, zone);
 
     lua_call(lua_state, 2, 0);
     lua_pop(lua_state, 1);
@@ -837,9 +936,9 @@ static inline void move_piece(struct wg_zone_internal* const zone, struct wg_pie
     // If the piece was in a zone remove it from the old zone
     if (piece->zone)
     {
-        struct wg_zone_internal* leaving_zone = (struct wg_zone_internal*)get_internal((struct wg_base*)piece->zone);
+        struct wg_zone_internal* leaving_zone = (struct wg_zone_internal*)wg_internal((struct wg_base*)piece->zone);
         if (leaving_zone->jumptable->remove_piece)
-            leaving_zone->jumptable->remove_piece(piece->zone, (struct wg_piece*)downcast((struct wg_base_internal*)piece));
+            leaving_zone->jumptable->remove_piece(piece->zone, (struct wg_piece*)wg_public((struct wg_base_internal*)piece));
 
         remove_piece(leaving_zone, piece);
     }
@@ -847,10 +946,10 @@ static inline void move_piece(struct wg_zone_internal* const zone, struct wg_pie
     // If there is a new zone append the pice to it.
     if (zone)
     {
-        struct wg_zone* entering_zone = (struct wg_zone*)downcast((struct wg_base_internal*)zone);
+        struct wg_zone* entering_zone = (struct wg_zone*)wg_public((struct wg_base_internal*)zone);
 
         if (zone->jumptable->append_piece)
-            zone->jumptable->append_piece(entering_zone, (struct wg_piece*)downcast((struct wg_base_internal*)piece));
+            zone->jumptable->append_piece(entering_zone, (struct wg_piece*)wg_public((struct wg_base_internal*)piece));
 
         append_piece(zone, piece);
 
@@ -894,14 +993,12 @@ static int manual_move(lua_State* L)
 
 static void call_lua(struct wg_base_internal* const wg, const char* key, struct wg_base_internal* const obj)
 {
-    lua_getglobal(lua_state, "widgets");
-    lua_pushlightuserdata(lua_state, wg);
-    lua_gettable(lua_state, -2);
+    lua_pushenginenode(lua_state, wg);
     
     // In the end this might be removable, keeping for now.
     if (lua_isnil(lua_state, -1))
     {
-        lua_pop(lua_state, 3);
+        lua_pop(lua_state, 1);
         return;
     }
 
@@ -910,7 +1007,7 @@ static void call_lua(struct wg_base_internal* const wg, const char* key, struct 
     
     if (lua_isnil(lua_state, -1))
     {
-        lua_pop(lua_state, 4);
+        lua_pop(lua_state, 3);
         return;
     }
 
@@ -918,8 +1015,7 @@ static void call_lua(struct wg_base_internal* const wg, const char* key, struct 
 
     if (obj)
     {
-        lua_pushlightuserdata(lua_state, obj);
-        lua_gettable(lua_state, -5);
+        lua_pushenginenode(lua_state, obj);
 
         lua_pcall(lua_state, 2, 0, 0);
     }
@@ -1030,7 +1126,7 @@ static void call_drag_end_drop(struct wg_base_internal* const wg, const char* ke
             return;
 
         // I love typecasting
-        struct wg_zone_internal* const zone = (struct wg_zone_internal* const) get_internal((struct wg_base*) ((struct wg_piece_internal* const)wg)->zone);
+        struct wg_zone_internal* const zone = (struct wg_zone_internal* const) wg_internal((struct wg_base*) ((struct wg_piece_internal* const)wg)->zone);
         struct wg_piece_internal* const piece = (struct wg_piece_internal* const)obj;
 
         if (!zone->valid_move)
@@ -1057,7 +1153,7 @@ static void call_drag_end_drop(struct wg_base_internal* const wg, const char* ke
         call_hover_start(widget, #method);\
         call_hover_end(widget, #method);\
         if((widget)->jumptable-> ## method)\
-			(widget)->jumptable-> ## method(downcast(widget)); \
+			(widget)->jumptable-> ## method(wg_public(widget)); \
         call_lua(widget, #method, NULL);\
     }while(0); 
 
@@ -1067,34 +1163,10 @@ static void call_drag_end_drop(struct wg_base_internal* const wg, const char* ke
         call_drop_end(widget, #method,obj);\
 		call_drag_end_drop(widget, #method, obj);\
         if((widget)->jumptable-> ## method)\
-			(widget)->jumptable-> ## method(downcast(widget),downcast(obj)); \
+			(widget)->jumptable-> ## method(wg_public(widget),wg_public(obj)); \
         call_lua(widget, #method, obj);\
      }while(0); 
 
-
-/*********************************************/
-/*               Camera Tweener              */
-/*********************************************/
-
-static struct wg_base_internal camera;
-
-static void camera_compose_transform(ALLEGRO_TRANSFORM* const trans, const double blend)
-{
-    ALLEGRO_TRANSFORM buffer;
-
-    const double blend_x = camera.x * blend;
-    const double blend_y = camera.y * blend;
-    const double blend_sx = camera.sx * blend + (1 - blend);
-    const double blend_sy = camera.sy * blend + (1 - blend);
-    const double blend_a = camera.a * blend;
-
-    al_build_transform(&buffer,
-        blend_x, blend_y,
-        blend_sx, blend_sy,
-        blend_a);
-
-    al_compose_transform(trans, &buffer);
-}
 
 /*********************************************/
 /*                  Shaders                  */
@@ -1127,9 +1199,9 @@ static inline struct wg_base_internal* pick(int x, int y)
     if (hide_hover)
         queue_pop(current_hover);
 
-    struct work_queue* const work = containter_mask(cr_zones);
-    work_queue_concatenate(work, containter_mask(cr_pieces));
-    work_queue_concatenate(work, containter_mask(cr_hud));
+    struct work_queue* const work = container_mask(cr_zones);
+    work_queue_concatenate(work, container_mask(cr_pieces));
+    work_queue_concatenate(work, container_mask(cr_hud));
     work_queue_run(work);
     free(work);
 
@@ -1138,11 +1210,11 @@ static inline struct wg_base_internal* pick(int x, int y)
     al_unmap_rgb_f(al_get_pixel(offscreen_bitmap, x, y),
         color_buffer, color_buffer + 1, color_buffer + 2);
 
-    size_t index = round(200 * color_buffer[0]) +
+    size_t wg_index = round(200 * color_buffer[0]) +
         200 * round(200 * color_buffer[1]) +
         40000 * round(200 * color_buffer[2]);
 
-    if (index == 0)
+    if (wg_index == 0)
     {
         if (hide_hover)
             queue_insert(current_hover, current_hover->next);
@@ -1150,7 +1222,7 @@ static inline struct wg_base_internal* pick(int x, int y)
         return NULL;
     }
 
-    struct wg_base_internal* widget = engine_mask_select(index);
+    struct wg_base_internal* widget = engine_mask_select(wg_index);
 
     if (hide_hover)
         queue_insert(current_hover, current_hover->next);
@@ -1281,14 +1353,14 @@ static void draw_widget(const struct wg_base_internal* const wg)
     }
 
     ALLEGRO_TRANSFORM buffer;
-    keyframe_build_transform((struct keyframe* const) get_keyframe(wg), (ALLEGRO_TRANSFORM* const ) & buffer);
+    keyframe_build_transform((struct keyframe* const) wg_keyframe(wg), (ALLEGRO_TRANSFORM* const ) & buffer);
     camera_compose_transform(&buffer, wg->c);
     al_use_transform(&buffer);
 
     material_apply(NULL);
     glDisable(GL_STENCIL_TEST);
 
-    wg->jumptable->draw((const struct wg_base* const) downcast(wg));
+    wg->jumptable->draw((const struct wg_base* const) wg_public(wg));
 
 #ifdef WIDGET_DEBUG_DRAW
     al_draw_textf(debug_font, al_map_rgb_f(0, 1, 0), 10, 10, ALLEGRO_ALIGN_LEFT,
@@ -1406,7 +1478,7 @@ void widget_screen_to_local(const struct wg_base* const wg, double* x, double* y
     float _x = *x;
     float _y = *y;
 
-    keyframe_build_transform(get_keyframe(get_internal(wg)), &transform);
+    keyframe_build_transform(wg_keyframe(wg_internal(wg)), &transform);
 
     // WARNING: the inbuilt invert only works for 2D transforms
     al_invert_transform(&transform);
@@ -1421,7 +1493,7 @@ void widget_screen_to_local(const struct wg_base* const wg, double* x, double* y
 // Check that a widget has the right jumptable
 struct wg_base* check_widget(struct wg_base* wg, const struct wg_jumptable_base* const jumptable)
 {
-    return ((get_internal(wg))->jumptable == jumptable) ? wg : NULL;
+    return ((wg_internal(wg))->jumptable == jumptable) ? wg : NULL;
 }
 
 struct wg_base* check_widget_lua(int idx, const struct wg_jumptable_base* const jumptable)
@@ -1434,7 +1506,7 @@ struct wg_base* check_widget_lua(int idx, const struct wg_jumptable_base* const 
     if (!wg || wg->jumptable != jumptable)
         return NULL;
 
-    return downcast(wg);
+    return wg_public(wg);
 }
 
 // Change widget_engine_state __like__ ALLEGRO_EVENT_MOUSE_BUTTON_UP occurred.
@@ -1514,9 +1586,9 @@ void widget_engine_draw()
         queue_pop(current_hover);
 
     // Maybe add a second pass for stencil effect?
-    struct work_queue* const work = containter_draw(cr_zones);
-    work_queue_concatenate(work, containter_draw(cr_pieces));
-    work_queue_concatenate(work, containter_draw(cr_hud));
+    struct work_queue* const work = container_draw(cr_zones);
+    work_queue_concatenate(work, container_draw(cr_pieces));
+    work_queue_concatenate(work, container_draw(cr_hud));
     work_queue_run(work);
     free(work);
 
@@ -1619,9 +1691,9 @@ void widget_engine_update()
 struct work_queue* widget_engine_widget_work()
 {
     // Since the update method doesn't change maybe we should have a static queue?
-    struct work_queue* const work = containter_update(cr_zones);
-    work_queue_concatenate(work, containter_update(cr_pieces));
-    work_queue_concatenate(work, containter_update(cr_hud));
+    struct work_queue* const work = container_update(cr_zones);
+    work_queue_concatenate(work, container_update(cr_pieces));
+    work_queue_concatenate(work, container_update(cr_hud));
 
     return work;
 }
@@ -1637,9 +1709,9 @@ void widget_engine_event_handler()
         else
             widget_engine_state = ENGINE_STATE_IDLE;
 
-    struct work_queue* const work = containter_event_handler(cr_zones);
-    work_queue_concatenate(work, containter_event_handler(cr_pieces));
-    work_queue_concatenate(work, containter_event_handler(cr_hud));
+    struct work_queue* const work = container_event_handler(cr_zones);
+    work_queue_concatenate(work, container_event_handler(cr_pieces));
+    work_queue_concatenate(work, container_event_handler(cr_hud));
     work_queue_run(work);
     free(work);
 
@@ -1715,6 +1787,16 @@ void widget_engine_event_handler()
 /*********************************************/
 /*               LUA interface               */
 /*********************************************/
+
+extern int material_test_new(lua_State*); // Not implemented
+extern int button_new(lua_State*);
+extern int counter_new(lua_State*);
+extern int text_entry_new(lua_State*);
+extern int slider_new(lua_State*);
+extern int drop_down_new(lua_State*);
+extern int tile_selector_new(lua_State*);
+extern int tile_new(lua_State*);
+extern int meeple_new(lua_State*);
 
 // Set the widget keyframe (singular) clears all current keyframes 
 static int set_keyframe(lua_State* L)
@@ -1803,7 +1885,7 @@ static int camera_set(lua_State* L)
 }
 
 // General widget garbage collection
-static int gc(lua_State* L)
+static int wg_gc(lua_State* L)
 {
     // WARNING: __gc is called before freeing udata but after removing from weak references
     // In particular, the entry is already removed from the "widgets" global table.
@@ -1812,7 +1894,7 @@ static int gc(lua_State* L)
     struct wg_base_internal* const wg = (struct wg_base_internal*)luaL_checkudata(L, 1, "widget_mt");
 
     if (wg->jumptable->gc)
-        wg->jumptable->gc(downcast(wg));
+        wg->jumptable->gc(wg_public(wg));
 
     if (wg->engine_type == WG_ZONE)
         free(((struct wg_zone_internal* const)wg)->pieces);
@@ -1826,7 +1908,7 @@ static int gc(lua_State* L)
 }
 
 // General widget index method
-static int index(lua_State* L)
+static int wg_index(lua_State* L)
 {
     static const struct {
         const char* key;
@@ -1874,14 +1956,12 @@ static int index(lua_State* L)
 
             if (strcmp(key, "pieces") == 0)
             {
-                lua_getglobal(L, "widgets");
                 lua_createtable(L, (int) zone->used, 0);
 
                 for (size_t i = 0; i < zone->used; i++)
                 {
                     lua_pushnumber(L, i + 1);
-                    lua_pushlightuserdata(L, get_internal((struct wg_base*) zone->pieces[i]));
-                    lua_gettable(L, -4);
+                    lua_pushenginenode(L, wg_internal(zone->pieces[i]));
                     lua_settable(L, -3);
                 }
 
@@ -1894,9 +1974,7 @@ static int index(lua_State* L)
 
             if (strcmp(key, "zone") == 0)
             {
-                lua_getglobal(L, "widgets");
-                lua_pushlightuserdata(L, get_internal((struct wg_base*) piece->zone));
-                lua_gettable(L, -2);
+                lua_pushenginenode(L, wg_internal(piece->zone));
 
                 return 1;
             }
@@ -1923,7 +2001,7 @@ static int index(lua_State* L)
 }
 
 // General widget newindex method
-static int newindex(lua_State* L)
+static int wg_newindex(lua_State* L)
 {
     struct wg_base_internal* const wg = (struct wg_base_internal*)luaL_checkudata(L, -3, "widget_mt");
 
@@ -1943,150 +2021,39 @@ static int newindex(lua_State* L)
     return 0;
 }
 
-/*********************************************/
-/*              Widgets Methods              */
-/*********************************************/
-
-/*
-// TODO: Add type mask
-static bool widgets_class_mask[WG_CNT];
-
-static int widgets_setmask(lua_State* L)
+// General container
+static int cr_index(lua_State* L)
 {
-    for(enum wg_class class = 0; class < WG_CLASS_CNT; class++)
-		widgets_class_mask[class] = lua_toboolean(L,class -WG_CLASS_CNT);
+    struct cr_base* const cr = (struct cr_base*)luaL_checkudata(L, -2, "container_mt");
 
-    lua_pop(L, WG_CLASS_CNT);
+    if (lua_type(L, -1) == LUA_TSTRING)
+    {
+        const char* key = lua_tostring(L, -1);
 
-    return 0;
+        // Check if the key matches a constructors
+        lua_getfenv(L, -2);
+        lua_getfield(L, -1, "constructors");
+        lua_getfield(L, -1, key);
+
+        if (lua_type(L, -1) == LUA_TFUNCTION)
+            return 1;
+
+        lua_pop(L, 4);
+
+        stack_dump(L);
+    }
+
+    return -1;
 }
-
-static int widgets_iter(lua_State* L)
-{
-    if (!lua_isfunction(L, -1))
-        return 0;
-
-    lua_getglobal(L, "widgets");
-
-    struct wg_base_internal* wg, *wg_next;
-
-    for(size_t class = 0; class < WG_CLASS_CNT; class++)
-        if(widgets_class_mask[class])
-			for (wg = queue_head[class]; wg; wg = wg_next)
-			{
-				wg_next = wg->next;
-
-				lua_pushvalue(L, -2);
-				lua_pushlightuserdata(L, wg);
-				lua_gettable(L, -3);
-
-				lua_call(L, 1, 0);
-			}
-
-    lua_pop(L, 2);
-
-    return 0;
-}
-
-static int widgets_filter(lua_State* L)
-{
-    if (!lua_isfunction(L, -1))
-        return 0;
-
-    lua_createtable(L, 0, 0);
-
-    lua_getglobal(L, "widgets");
-
-    struct wg_base_internal* wg, * wg_next;
-
-    for (size_t class = 0; class < WG_CLASS_CNT; class++)
-        if (widgets_class_mask[class])
-			for (wg = queue_head[class]; wg; wg = wg_next)
-			{
-				wg_next = wg->next;
-
-				lua_pushvalue(L, -3);
-				lua_pushlightuserdata(L, wg);
-				lua_gettable(L, -3);
-
-				lua_call(L, 1,1);
-
-				if (!lua_toboolean(L, -1))
-				{
-					lua_pop(L, 1);
-					continue;
-				}
-
-				lua_pop(L, 1);
-
-				const size_t len = lua_objlen(L, -2);
-
-				lua_pushinteger(L, len + 1);
-				lua_pushlightuserdata(L, wg);
-				lua_gettable(L, -3);
-
-				lua_settable(L, -4);
-			}
-
-    lua_pop(L, 1);
-    lua_remove(L, -2);
-
-    return 1;
-}
-*/
 
 static int widgets_remove(lua_State* L)
 {
     struct wg_base_internal* const wg = (struct wg_base_internal*)luaL_checkudata(L, 1, "widget_mt");
 
-    lua_pushlightuserdata(L, wg);
-    lua_pushnil(L);
-    lua_settable(L, -3);
-
     queue_pop(wg);
     prevent_stale_pointers(wg);
 
     return 0;
-}
-
-static void widgets_init()
-{
-    // Make a weak global table to contain the widgets
-    // And some functions for manipulating them
-    lua_newtable(lua_state);
-    lua_newtable(lua_state);
-
-    lua_pushvalue(lua_state, -1);
-    lua_setfield(lua_state, -2, "__index");
-
-    /*
-    lua_pushcfunction(lua_state, widgets_iter);
-    lua_setfield(lua_state, -2, "iter");
-
-    lua_pushcfunction(lua_state, widgets_filter);
-    lua_setfield(lua_state, -2, "filter");
-
-    lua_pushcfunction(lua_state, widgets_setmask);
-    lua_setfield(lua_state, -2, "mask");
-    */
-
-    lua_pushcfunction(lua_state, widgets_remove);
-    lua_setfield(lua_state, -2, "remove");
-
-    // This makes widgets a weak table
-    if (1)
-    {
-        lua_pushstring(lua_state, "vk");
-        lua_setfield(lua_state, -2, "__mode");
-    }
-
-    lua_setmetatable(lua_state, -2);
-    lua_setglobal(lua_state, "widgets");
-
-    /*
-    for(size_t class = 0; class < WG_CLASS_CNT; class++)
-		widgets_class_mask[class] = true;
-        */
 }
 
 /*********************************************/
@@ -2120,14 +2087,175 @@ static void style_init()
 /*           Widget Engine Inits             */
 /*********************************************/
 
+static void metatables_init()
+{
+    // Make the container metatable
+    luaL_newmetatable(lua_state, "container_mt");
+
+    lua_pushcfunction(lua_state, cr_index);
+    lua_setfield(lua_state, -2, "__index");
+    stack_dump(lua_state);
+
+    lua_register(lua_state, "manual_move", manual_move);
+
+    // Make the widget metatable
+    luaL_newmetatable(lua_state, "widget_mt");
+
+    lua_pushcfunction(lua_state, wg_index);
+    lua_setfield(lua_state, -2, "__index");
+
+    lua_pushcfunction(lua_state, wg_newindex);
+    lua_setfield(lua_state, -2, "__newindex");
+
+    lua_pushcfunction(lua_state, wg_gc);
+    lua_setfield(lua_state, -2, "__gc");
+
+    lua_pop(lua_state, 2);
+}
+
+static void top_containers_init()
+{
+    ///////////////// zones ///////////////
+    cr_zones = lua_newuserdata(lua_state, sizeof(struct cr_base));
+
+    *cr_zones = (struct cr_base)
+    {
+        .engine_type = CR_BASE
+    };
+
+    tweener_init(cr_zones);
+
+    // Set metatable
+    luaL_getmetatable(lua_state, "container_mt");
+    lua_setmetatable(lua_state, -2);
+
+    // fenv table
+    lua_newtable(lua_state);
+
+    // Empty content table
+    lua_newtable(lua_state);
+    lua_setfield(lua_state, -2, "content");
+
+    // Constructors table
+    lua_newtable(lua_state);
+
+    lua_pushcfunction(lua_state, tile_new);
+    lua_setfield(lua_state, -2, "tile");
+
+    lua_setfield(lua_state, -2, "constructors");
+
+    lua_setfenv(lua_state, -2);
+
+    // Set a ref in the registry
+    lua_pushlightuserdata(lua_state, cr_zones);
+    lua_pushvalue(lua_state, -2);
+    lua_settable(lua_state, LUA_REGISTRYINDEX);
+
+    // Set the global
+    lua_setglobal(lua_state, "zones");
+
+    ///////////////// pieces ///////////////
+    cr_pieces = lua_newuserdata(lua_state, sizeof(struct cr_base));
+
+    *cr_pieces = (struct cr_base)
+    {
+        .engine_type = CR_BASE
+    };
+
+    tweener_init(cr_pieces);
+
+    // Set metatable
+    luaL_getmetatable(lua_state, "container_mt");
+    lua_setmetatable(lua_state, -2);
+
+    // fenv table
+    lua_newtable(lua_state);
+
+    // Empty content table
+    lua_newtable(lua_state);
+    lua_setfield(lua_state, -2, "content");
+
+    // Constructors table
+    lua_newtable(lua_state);
+
+    lua_pushcfunction(lua_state, meeple_new);
+    lua_setfield(lua_state, -2, "meeple");
+
+    lua_setfield(lua_state, -2, "constructors");
+
+    lua_setfenv(lua_state, -2);
+
+    // Set a ref in the registry
+    lua_pushlightuserdata(lua_state, cr_pieces);
+    lua_pushvalue(lua_state, -2);
+    lua_settable(lua_state, LUA_REGISTRYINDEX);
+
+    // Set the global
+    lua_setglobal(lua_state, "pieces");
+
+    ///////////////// hud ///////////////
+    cr_hud = lua_newuserdata(lua_state, sizeof(struct cr_base));
+
+    *cr_hud = (struct cr_base)
+    {
+        .engine_type = CR_BASE
+    };
+
+    tweener_init(cr_hud);
+
+    // Set metatable
+    luaL_getmetatable(lua_state, "container_mt");
+    lua_setmetatable(lua_state, -2);
+
+    // fenv table
+    lua_newtable(lua_state);
+
+    // Empty content table
+    lua_newtable(lua_state);
+    lua_setfield(lua_state, -2, "content");
+
+    // Constructors table
+    lua_newtable(lua_state);
+
+    lua_pushcfunction(lua_state, button_new);
+    lua_setfield(lua_state, -2, "button");
+
+    lua_pushcfunction(lua_state, counter_new);
+    lua_setfield(lua_state, -2, "counter");
+
+    lua_pushcfunction(lua_state, text_entry_new);
+    lua_setfield(lua_state, -2, "text_entry");
+
+    lua_pushcfunction(lua_state, slider_new);
+    lua_setfield(lua_state, -2, "slider");
+
+    lua_pushcfunction(lua_state, drop_down_new);
+    lua_setfield(lua_state, -2, "drop_down");
+
+    lua_pushcfunction(lua_state, tile_selector_new);
+    lua_setfield(lua_state, -2, "tile_selector");
+
+    lua_setfield(lua_state, -2, "constructors");
+
+    lua_setfenv(lua_state, -2);
+
+    // Set a ref in the registry
+    lua_pushlightuserdata(lua_state, cr_hud);
+    lua_pushvalue(lua_state, -2);
+    lua_settable(lua_state, LUA_REGISTRYINDEX);
+
+    // Set the global
+    lua_setglobal(lua_state, "hud");
+}
+
 // Initalize the Widget Engine
 void widget_engine_init()
 {
-    // Set empty pointers to NULL
-    cr_zones = container_init();
-    cr_pieces = container_init();
-    cr_hud = container_init();
+    metatables_init();
+
+    top_containers_init();
  
+    // Set empty pointers to NULL
     current_drop = NULL;
     current_hover = NULL;
     last_click = NULL;
@@ -2142,7 +2270,7 @@ void widget_engine_init()
     style_init();
 
     // Camera
-    keyframe_default(get_keyframe(&camera));
+    keyframe_default(wg_keyframe(&camera));
     tweener_init(&camera);
     lua_pushcfunction(lua_state, camera_push);
     lua_setglobal(lua_state, "camera_push");
@@ -2153,45 +2281,35 @@ void widget_engine_init()
     //
     zone_and_piece_init();
 
-    //
-    widgets_init();
-
     lua_register(lua_state, "manual_move", manual_move);
-        
-    // Make the widget meta table
-    luaL_newmetatable(lua_state, "widget_mt");
-
-    lua_pushcfunction(lua_state, index);
-    lua_setfield(lua_state, -2, "__index");
-
-    lua_pushcfunction(lua_state, newindex);
-    lua_setfield(lua_state, -2, "__newindex");
-
-    lua_pushcfunction(lua_state, gc);
-    lua_setfield(lua_state, -2, "__gc");
-
-    lua_pop(lua_state, 1);
 }
 
-static struct wg_base_internal* wg_alloc(enum node_type engine_type, size_t size)
+/*********************************************/
+/*           Widget Engine Inits             */
+/*********************************************/
+
+static struct wg_base_internal* wg_alloc(enum en_type engine_type, size_t size)
 {
+    if (!lua_istable(lua_state, -1))
+        lua_createtable(lua_state, 0, 0);     
+
     size += sizeof(struct engine_node);
     size += sizeof(struct wg_jumptable_base*);
 
     struct wg_base_internal* const widget = lua_newuserdata(lua_state, size);
+    struct cr_base* parent = (struct cr_base*)lua_topointer(lua_state, -3);
 
-    if (!widget)
+    if (!widget || !parent)
         return NULL;
 
     *widget = (struct wg_base_internal)
     {
         .engine_type = engine_type,
-        .next = NULL,
-        .parent = get_top_cr(engine_type),
-        .previous = get_top_cr(engine_type)->tail,
     };
 
-    keyframe_default((struct keyframe* const)get_keyframe(widget));
+    cr_append(parent, widget);
+
+    keyframe_default((struct keyframe* const)wg_keyframe(widget));
 
     switch (engine_type)
     {
@@ -2209,59 +2327,34 @@ static struct wg_base_internal* wg_alloc(enum node_type engine_type, size_t size
     luaL_getmetatable(lua_state, "widget_mt");
     lua_setmetatable(lua_state, -2);
 
-    // Add to "widgets" global
-    lua_getglobal(lua_state, "widgets");
-    lua_pushlightuserdata(lua_state, widget);
-    lua_pushvalue(lua_state, -3);
+	// Process keyframes
+	lua_getkeyframe(-2, (struct keyframe* const)wg_keyframe(widget));
 
-    lua_settable(lua_state, -3);
-    lua_pop(lua_state, 1);
+	// Read Width
+	lua_getfield(lua_state, -2, "width");
 
-    // Wire the widget into the queue
-    if (get_top_cr(engine_type)->tail)
-        get_top_cr(engine_type)->tail->next = widget;
-    else
-        get_top_cr(engine_type)->head = widget;
+	if (lua_isnumber(lua_state, -1))
+		widget->half_width = 0.5 * luaL_checknumber(lua_state, -1);
 
-    get_top_cr(engine_type)->tail = widget;
-    
-    if (LUA_TTABLE == lua_type(lua_state, -2))
-    {
-        // Process keyframes
-        lua_getkeyframe(-2, (struct keyframe* const)downcast(widget));
+	// Read Height
+	lua_getfield(lua_state, -3, "height");
 
-        // Read Width
-        lua_getfield(lua_state, -2, "width");
+	if (lua_isnumber(lua_state, -1))
+		widget->half_height = 0.5 * luaL_checknumber(lua_state, -1);
 
-        if (lua_isnumber(lua_state, -1))
-            widget->half_width = 0.5 * luaL_checknumber(lua_state, -1);
+	lua_pop(lua_state, 2);
 
-        // Read Height
-        lua_getfield(lua_state, -3, "height");
+	// Clean up some keys from the table
+	lua_cleankeyframe(-2);
 
-        if (lua_isnumber(lua_state, -1))
-            widget->half_height = 0.5 * luaL_checknumber(lua_state, -1);
+	lua_pushnil(lua_state);
+	lua_setfield(lua_state, -3, "height");
+	lua_pushnil(lua_state);
+	lua_setfield(lua_state, -3, "width");
 
-        lua_pop(lua_state, 2);
-
-        // Clean up some keys from the table
-        lua_cleankeyframe(-2);
-
-        lua_pushnil(lua_state);
-        lua_setfield(lua_state, -3, "height");
-        lua_pushnil(lua_state);
-        lua_setfield(lua_state, -3, "width");
-
-        // Set fenv
-        lua_pushvalue(lua_state, -2);
-        lua_setfenv(lua_state, -2);
-    }
-    else
-    {
-        lua_newtable(lua_state);
-        lua_pushvalue(lua_state, -1);
-        lua_setfenv(lua_state, -3);
-    }
+	// Set fenv
+	lua_pushvalue(lua_state, -2);
+	lua_setfenv(lua_state, -2);
 
     tweener_init(widget);
 
@@ -2284,7 +2377,7 @@ struct wg_zone* wg_alloc_zone(size_t size, struct wg_jumptable_zone* jumptable)
     wg->allocated = 0;
     wg->pieces = NULL;
 
-    return (struct wg_zone*)downcast((struct wg_base_internal*) wg);
+    return (struct wg_zone*)wg_public((struct wg_base_internal*) wg);
 }
 
 struct wg_piece* wg_alloc_piece(size_t size, struct wg_jumptable_piece* jumptable)
@@ -2297,7 +2390,7 @@ struct wg_piece* wg_alloc_piece(size_t size, struct wg_jumptable_piece* jumptabl
 
     wg->zone = NULL;
 
-    return (struct wg_piece*)downcast((struct wg_base_internal*)wg);
+    return (struct wg_piece*)wg_public((struct wg_base_internal*)wg);
 }
 
 struct wg_hud* wg_alloc_hud(size_t size, struct wg_jumptable_hud* jumptable)
@@ -2311,5 +2404,5 @@ struct wg_hud* wg_alloc_hud(size_t size, struct wg_jumptable_hud* jumptable)
     wg->hud_state = HUD_IDLE;
     wg->pallet = &primary_pallet;
 
-    return (struct wg_hud*)downcast((struct wg_base_internal*)wg);
+    return (struct wg_hud*)wg_public((struct wg_base_internal*)wg);
 }

@@ -13,33 +13,6 @@
 extern double current_timestamp;
 extern double delta_timestamp;
 
-extern int material_test_new(lua_State*);
-extern const struct wg_jumptable_base material_test_jumptable;
-
-extern int button_new(lua_State*);
-extern const struct wg_jumptable_base button_jumptable;
-
-extern int counter_new(lua_State*);
-extern const struct wg_jumptable_base counter_jumptable;
-
-extern int text_entry_new(lua_State*);
-extern const struct wg_jumptable_base text_entry_jumptable;
-
-extern int slider_new(lua_State*);
-extern const struct wg_jumptable_base slider_jumptable;
-
-extern int drop_down_new(lua_State*);
-extern const struct wg_jumptable_base drop_down_jumptable;
-
-extern int tile_selector_new(lua_State*);
-extern const struct wg_jumptable_zone tile_selector_jumptable;
-
-extern int tile_new(lua_State*);
-extern const struct wg_jumptable_zone tile_jumptable;
-
-extern int meeple_new(lua_State*);
-extern const struct wg_jumptable_piece meeple_jumptable;
-
 // Simple stack dump for debugging
 void stack_dump(lua_State* L)
 {
@@ -152,43 +125,6 @@ static int native_file_dialog(lua_State* L)
 // Set misc lua interface globals
 void lua_openL_misc(lua_State* L)
 {
-	// Widget Initalizers
-	lua_register(L, "material_test", material_test_new);
-	lua_pushlightuserdata(L, &material_test_jumptable);
-	lua_setglobal(L, "type_material_test");
-	
-	lua_register(L, "button", button_new);
-	lua_pushlightuserdata(L, &button_jumptable);
-	lua_setglobal(L, "type_button");
-
-	lua_register(L, "counter", counter_new);
-	lua_pushlightuserdata(L, &counter_jumptable);
-	lua_setglobal(L, "type_counter");
-
-	lua_register(L, "text_entry", text_entry_new);
-	lua_pushlightuserdata(L, &text_entry_jumptable);
-	lua_setglobal(L, "type_text_entry");
-
-	lua_register(L, "slider", slider_new);
-	lua_pushlightuserdata(L, &slider_jumptable);
-	lua_setglobal(L, "type_slider");
-	
-	lua_register(L, "drop_down", drop_down_new);
-	lua_pushlightuserdata(L, &drop_down_jumptable);
-	lua_setglobal(L, "type_drop_down");
-
-	lua_register(L, "tile", tile_new);
-	lua_pushlightuserdata(L, &tile_jumptable);
-	lua_setglobal(L, "type_tile");
-
-	lua_register(L, "tile_selector", tile_selector_new);
-	lua_pushlightuserdata(L, &tile_selector_jumptable);
-	lua_setglobal(L, "tile_selector_tile");
-
-	lua_register(L, "meeple", meeple_new);
-	lua_pushlightuserdata(L, &meeple_jumptable);
-	lua_setglobal(L, "type_meeple");
-
 	// Misc Functions
 	lua_pushcfunction(L, get_current_time);
 	lua_setglobal(L, "current_time");
