@@ -346,22 +346,10 @@ static void tweener_enter_loop(struct wg_internal* wg, double loop_offset)
 // This will be a problem if there are too many parents.
 static void lua_pushenginenode(lua_State* L, struct wg_internal* en)
 {
-    if (!en->parent)
-    {
-        lua_pushlightuserdata(L, en);
-        lua_gettable(L, LUA_REGISTRYINDEX);
-
-        return;
-    }
-
-    lua_pushenginenode(L, en->parent);
-    lua_getfenv(L, -1);
-    lua_getfield(L, -1, "content");
+    lua_getglobal(L, "_widgets");
     lua_pushlightuserdata(L, en);
     lua_gettable(L, -2);
-
-    lua_replace(L, -4);
-    lua_pop(L, 2);
+    lua_replace(L, -2);
 }
 
 /*********************************************/
@@ -406,9 +394,7 @@ static void wg_append(struct wg_internal* parent, struct wg_internal* child)
 
     lua_pushenginenode(lua_state, parent);
     lua_getfenv(lua_state, -1);
-    stack_dump(lua_state);
     lua_getfield(lua_state, -1, "content");
-    stack_dump(lua_state);
     lua_pushlightuserdata(lua_state, child);
     lua_pushenginenode(lua_state, child);
     lua_settable(lua_state, -3);
@@ -624,11 +610,12 @@ static struct wg_internal* engine_mask_select_inner(struct wg_internal* cr, size
     while (node && *i > 1)
     {
         if (wg_is_widget(node))
-        {
-            node = node->next;
-            (* i)--;
-        }else if (wg_is_container(node))
+            (*i)--;
+
+        if (wg_is_container(node))
             engine_mask_select_inner(node, i);
+
+        node = node->next;
     }
 
     return node;
@@ -1844,8 +1831,6 @@ static int wg_index(lua_State* L)
         {NULL,NULL,false},
     };
 
-    stack_dump(lua_state);
-
     struct wg_internal* const wg = (struct wg_internal*)luaL_checkudata(L, -2, "widget_mt");
 
     if (lua_type(L, -1) == LUA_TSTRING)
@@ -2016,6 +2001,9 @@ static void metatables_init()
     lua_setfield(lua_state, -2, "__gc");
 
     lua_pop(lua_state, 2);
+
+    lua_newtable(lua_state);
+    lua_setglobal(lua_state, "_widgets");
 }
 
 static void top_widgets_init()
@@ -2208,6 +2196,12 @@ static struct wg_internal* wg_alloc(enum wg_type engine_type, size_t size)
     lua_setfenv(lua_state, -2);
 
     tweener_init(widget);
+
+    lua_getglobal(lua_state, "_widgets");
+    lua_pushlightuserdata(lua_state, widget);
+    lua_pushvalue(lua_state, -3);
+    lua_settable(lua_state, -3);
+    lua_pop(lua_state, 1);
 
     return widget;
 }

@@ -12,6 +12,8 @@ meeple = board:meeple{x=300,y=200}
 
 button = hud:button{x=500,y=500}
 
+sub_meeple = tile_a:meeple{x=200,y=200}
+
 function moves(piece,zone)
 	return {tile_a,tile_b}
 end
