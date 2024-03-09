@@ -177,9 +177,8 @@ static struct wg_internal* last_click;
 static struct wg_internal* current_hover;
 static struct wg_internal* current_drop;
 
-static struct wg_zone_internal* cr_zones;
-static struct wg_piece_internal* cr_pieces;
-static struct wg_hud_internal* cr_hud;
+static struct wg_zone_internal* board;
+static struct wg_hud_internal* hud;
 
 /*********************************************/
 /*             Keyframe Tweener              */
@@ -639,17 +638,12 @@ static struct wg_internal* engine_mask_select(size_t i)
 {
     struct wg_internal* buffer = NULL;
 
-    buffer = engine_mask_select_inner((struct wg_internal*) cr_zones, &i);
+    buffer = engine_mask_select_inner((struct wg_internal*) board, &i);
 
     if (buffer && i == 1)
         return buffer;
 
-    buffer = engine_mask_select_inner((struct wg_internal*)cr_pieces, &i);
-
-    if (buffer && i == 1)
-        return buffer;
-
-    buffer = engine_mask_select_inner((struct wg_internal*)cr_hud, &i);
+    buffer = engine_mask_select_inner((struct wg_internal*)hud, &i);
 
     if (buffer && i == 1)
         return buffer;
@@ -712,7 +706,7 @@ static void idle_zones_cr(struct wg_internal* cr)
 }
 static void idle_zones()
 {
-    idle_zones_cr((struct wg_internal*) cr_zones);
+    idle_zones_cr((struct wg_internal*) board);
 }
 
 static void call_moves(struct wg_piece_internal* wg)
@@ -1131,9 +1125,8 @@ static inline struct wg_internal* pick(int x, int y)
     if (hide_hover)
         wg_remove(current_hover);
 
-    struct work_queue* const work = container_mask(cr_zones);
-    work_queue_concatenate(work, container_mask(cr_pieces));
-    work_queue_concatenate(work, container_mask(cr_hud));
+    struct work_queue* const work = container_mask(board);
+    work_queue_concatenate(work, container_mask(hud));
     work_queue_run(work);
     free(work);
 
@@ -1518,9 +1511,8 @@ void widget_engine_draw()
         wg_remove(current_hover);
 
     // Maybe add a second pass for stencil effect?
-    struct work_queue* const work = container_draw(cr_zones);
-    work_queue_concatenate(work, container_draw(cr_pieces));
-    work_queue_concatenate(work, container_draw(cr_hud));
+    struct work_queue* const work = container_draw(board);
+    work_queue_concatenate(work, container_draw(hud));
     work_queue_run(work);
     free(work);
 
@@ -1623,9 +1615,8 @@ void widget_engine_update()
 struct work_queue* widget_engine_widget_work()
 {
     // Since the update method doesn't change maybe we should have a static queue?
-    struct work_queue* const work = container_update(cr_zones);
-    work_queue_concatenate(work, container_update(cr_pieces));
-    work_queue_concatenate(work, container_update(cr_hud));
+    struct work_queue* const work = container_update(board);
+    work_queue_concatenate(work, container_update(hud));
 
     return work;
 }
@@ -1641,9 +1632,8 @@ void widget_engine_event_handler()
         else
             widget_engine_state = ENGINE_STATE_IDLE;
 
-    struct work_queue* const work = container_event_handler(cr_zones);
-    work_queue_concatenate(work, container_event_handler(cr_pieces));
-    work_queue_concatenate(work, container_event_handler(cr_hud));
+    struct work_queue* const work = container_event_handler(board);
+    work_queue_concatenate(work, container_event_handler(hud));
     work_queue_run(work);
     free(work);
 
@@ -1928,7 +1918,7 @@ static int wg_index(lua_State* L)
         }
     }
 
-    if (wg->jumptable->index)
+    if (wg_is_widget(wg) && wg->jumptable->index)
     {
         const int output = wg->jumptable->index(L);
 
@@ -2028,14 +2018,69 @@ static void metatables_init()
     lua_pop(lua_state, 2);
 }
 
-static void top_containers_init();
+static void top_widgets_init()
+{
+    lua_pushnil(lua_state);
+    board = wg_internal(wg_alloc_zone(sizeof(struct wg_zone), NULL));
+
+    lua_getfenv(lua_state, -1);
+    lua_getfield(lua_state, -1, "constructors");
+
+    lua_pushcfunction(lua_state, tile_new);
+    lua_setfield(lua_state, -2, "tile");
+
+    lua_pushcfunction(lua_state, meeple_new);
+    lua_setfield(lua_state, -2, "meeple");
+
+    lua_pop(lua_state, 2);
+
+    lua_pushlightuserdata(lua_state, board);
+    lua_pushvalue(lua_state, -2);
+    lua_settable(lua_state, LUA_REGISTRYINDEX);
+
+    lua_setglobal(lua_state, "board");
+
+    lua_pushnil(lua_state);
+
+    hud = wg_internal(wg_alloc_hud(sizeof(struct wg_hud), NULL));
+    lua_getfenv(lua_state, -1);
+    lua_getfield(lua_state, -1, "constructors");
+
+    lua_pushcfunction(lua_state, button_new);
+    lua_setfield(lua_state, -2, "button");
+
+    lua_pushcfunction(lua_state, counter_new);
+    lua_setfield(lua_state, -2, "counter");
+
+    lua_pushcfunction(lua_state, text_entry_new);
+    lua_setfield(lua_state, -2, "text_entry");
+
+    lua_pushcfunction(lua_state, slider_new);
+    lua_setfield(lua_state, -2, "slider");
+
+    lua_pushcfunction(lua_state, drop_down_new);
+    lua_setfield(lua_state, -2, "drop_down");
+
+    lua_pushcfunction(lua_state, tile_selector_new);
+    lua_setfield(lua_state, -2, "tile_selector");
+
+    lua_pop(lua_state, 2);
+
+    lua_pushlightuserdata(lua_state, hud);
+    lua_pushvalue(lua_state, -2);
+    lua_settable(lua_state, LUA_REGISTRYINDEX);
+
+    lua_setglobal(lua_state, "hud");
+
+    lua_pop(lua_state, 6);
+}
 
 // Initalize the Widget Engine
 void widget_engine_init()
 {
     metatables_init();
 
-    top_containers_init();
+    top_widgets_init();
  
     // Set empty pointers to NULL
     current_drop = NULL;
@@ -2073,7 +2118,7 @@ void widget_engine_init()
 static struct wg_internal* wg_alloc(enum wg_type engine_type, size_t size)
 {
     if (!lua_istable(lua_state, -1))
-        lua_createtable(lua_state, 0, 0);     
+        lua_createtable(lua_state, 0, 0);
 
     size += sizeof(struct wg_header);
     size += sizeof(struct wg_jumptable_base*);
@@ -2089,7 +2134,7 @@ static struct wg_internal* wg_alloc(enum wg_type engine_type, size_t size)
         .engine_type = engine_type,
     };
 
-    if(parent)
+    if (parent)
         wg_append(parent, widget);
 
     keyframe_default((struct keyframe* const)wg_keyframe(widget));
@@ -2110,36 +2155,34 @@ static struct wg_internal* wg_alloc(enum wg_type engine_type, size_t size)
     luaL_getmetatable(lua_state, "widget_mt");
     lua_setmetatable(lua_state, -2);
 
-	// Process keyframes
-	lua_getkeyframe(-2, (struct keyframe* const)wg_keyframe(widget));
+    // Process keyframes
+    lua_getkeyframe(-2, (struct keyframe* const)wg_keyframe(widget));
 
-	// Read Width
-	lua_getfield(lua_state, -2, "width");
+    // Read Width
+    lua_getfield(lua_state, -2, "width");
 
-	if (lua_isnumber(lua_state, -1))
-		widget->half_width = 0.5 * luaL_checknumber(lua_state, -1);
+    if (lua_isnumber(lua_state, -1))
+        widget->half_width = 0.5 * luaL_checknumber(lua_state, -1);
 
-	// Read Height
-	lua_getfield(lua_state, -3, "height");
+    // Read Height
+    lua_getfield(lua_state, -3, "height");
 
-	if (lua_isnumber(lua_state, -1))
-		widget->half_height = 0.5 * luaL_checknumber(lua_state, -1);
+    if (lua_isnumber(lua_state, -1))
+        widget->half_height = 0.5 * luaL_checknumber(lua_state, -1);
 
-	lua_pop(lua_state, 2);
+    lua_pop(lua_state, 2);
 
-	// Clean up some keys from the table
-	lua_cleankeyframe(-2);
+    // Clean up some keys from the table
+    lua_cleankeyframe(-2);
 
-	lua_pushnil(lua_state);
-	lua_setfield(lua_state, -3, "height");
-	lua_pushnil(lua_state);
-	lua_setfield(lua_state, -3, "width");
+    lua_pushnil(lua_state);
+    lua_setfield(lua_state, -3, "height");
+    lua_pushnil(lua_state);
+    lua_setfield(lua_state, -3, "width");
 
     // Empty content 
-    stack_dump(lua_state);
     lua_newtable(lua_state);
     lua_setfield(lua_state, -3, "content");
-    stack_dump(lua_state);
 
     lua_newtable(lua_state);
 
@@ -2160,9 +2203,9 @@ static struct wg_internal* wg_alloc(enum wg_type engine_type, size_t size)
     }
     lua_setfield(lua_state, -3, "constructors");
 
-	// Set fenv
-	lua_pushvalue(lua_state, -2);
-	lua_setfenv(lua_state, -2);
+    // Set fenv
+    lua_pushvalue(lua_state, -2);
+    lua_setfenv(lua_state, -2);
 
     tweener_init(widget);
 
@@ -2171,7 +2214,7 @@ static struct wg_internal* wg_alloc(enum wg_type engine_type, size_t size)
 
 struct wg_zone* wg_alloc_zone(size_t size, struct wg_jumptable_zone* jumptable)
 {
-    struct wg_zone_internal* wg = (struct wg_zone_internal*) wg_alloc(WG_ZONE, size);
+    struct wg_zone_internal* wg = (struct wg_zone_internal*)wg_alloc(WG_ZONE, size);
 
     wg->draggable = false;
     wg->snappable = false;
@@ -2185,7 +2228,9 @@ struct wg_zone* wg_alloc_zone(size_t size, struct wg_jumptable_zone* jumptable)
     wg->allocated = 0;
     wg->pieces = NULL;
 
-    return (struct wg_zone*)wg_public((struct wg_internal*) wg);
+    wg->c = 1;
+
+    return (struct wg_zone*)wg_public((struct wg_internal*)wg);
 }
 
 struct wg_piece* wg_alloc_piece(size_t size, struct wg_jumptable_piece* jumptable)
@@ -2197,6 +2242,8 @@ struct wg_piece* wg_alloc_piece(size_t size, struct wg_jumptable_piece* jumptabl
     wg->jumptable = (struct wg_jumptable_piece*)jumptable;
 
     wg->zone = NULL;
+
+    wg->c = 1;
 
     return (struct wg_piece*)wg_public((struct wg_internal*)wg);
 }
@@ -2212,77 +2259,7 @@ struct wg_hud* wg_alloc_hud(size_t size, struct wg_jumptable_hud* jumptable)
     wg->hud_state = HUD_IDLE;
     wg->pallet = &primary_pallet;
 
+    wg->c = 0;
+
     return (struct wg_hud*)wg_public((struct wg_internal*)wg);
 }
-
-static void top_containers_init()
-{
-    lua_pushnil(lua_state);
-    cr_zones = wg_internal(wg_alloc_zone(sizeof(struct wg_zone), NULL));
-
-    lua_getfenv(lua_state, -1);
-    lua_getfield(lua_state, -1, "constructors");
-    lua_pushcfunction(lua_state, tile_new);
-    lua_setfield(lua_state, -2, "tile");
-    lua_pop(lua_state, 2);
-
-    lua_pushlightuserdata(lua_state, cr_zones);
-    lua_pushvalue(lua_state, -2);
-    lua_settable(lua_state, LUA_REGISTRYINDEX);
-    
-    lua_setglobal(lua_state, "zones");
-
-    lua_pushnil(lua_state);
-    cr_pieces = wg_internal(wg_alloc_piece(sizeof(struct wg_piece), NULL));
-
-    lua_getfenv(lua_state, -1);
-    lua_getfield(lua_state, -1, "constructors");
-
-    lua_pushcfunction(lua_state, meeple_new);
-    lua_setfield(lua_state, -2, "meeple");
-
-    lua_pop(lua_state, 2);
-
-    lua_pushlightuserdata(lua_state, cr_pieces);
-    lua_pushvalue(lua_state, -2);
-    lua_settable(lua_state, LUA_REGISTRYINDEX);
-
-    lua_setglobal(lua_state, "pieces");
-
-    lua_pushnil(lua_state);
-
-    cr_hud = wg_internal(wg_alloc_hud(sizeof(struct wg_hud), NULL));
-    lua_getfenv(lua_state, -1);
-    lua_getfield(lua_state, -1, "constructors");
-
-    lua_pushcfunction(lua_state, button_new);
-    lua_setfield(lua_state, -2, "button");
-
-    lua_pushcfunction(lua_state, counter_new);
-    lua_setfield(lua_state, -2, "counter");
-
-    lua_pushcfunction(lua_state, text_entry_new);
-    lua_setfield(lua_state, -2, "text_entry");
-
-    lua_pushcfunction(lua_state, slider_new);
-    lua_setfield(lua_state, -2, "slider");
-
-    lua_pushcfunction(lua_state, drop_down_new);
-    lua_setfield(lua_state, -2, "drop_down");
-
-    lua_pushcfunction(lua_state, tile_selector_new);
-    lua_setfield(lua_state, -2, "tile_selector");
-
-    lua_pop(lua_state, 2);
-
-    lua_pushlightuserdata(lua_state, cr_hud);
-    lua_pushvalue(lua_state, -2);
-    lua_settable(lua_state, LUA_REGISTRYINDEX);
-
-    lua_setglobal(lua_state, "hud");
-
-    lua_pop(lua_state, 6);
-
-
-}
-

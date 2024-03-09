@@ -6,10 +6,11 @@
 
 --dofile("lua/HUD_test.lua")
 
-tile_a = zones:tile{x=200,y=200,q=1,r=0,tile="hills"}
-tile_b = zones:tile{x=400,y=200,q=0,r=0,tile="hills"}
+tile_a = board:tile{x=200,y=200,q=1,r=0,tile="hills"}
+tile_b = board:tile{x=400,y=200,q=0,r=0,tile="hills"}
+meeple = board:meeple{x=300,y=200}
 
-meeple = pieces:meeple{x=300,y=200}
+button = hud:button{x=500,y=500}
 
 function moves(piece,zone)
 	return {tile_a,tile_b}
