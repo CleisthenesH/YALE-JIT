@@ -1847,8 +1847,6 @@ static int wg_index(lua_State* L)
                 return 1;
             }
 
-
-
 		// Check if the key matches a constructors
 		lua_getfenv(L, -2);
 		lua_getfield(L, -1, "constructors");
@@ -1857,8 +1855,15 @@ static int wg_index(lua_State* L)
 		if (lua_type(L, -1) == LUA_TFUNCTION)
 			return 1;
 
-		lua_pop(L, 4);
+		lua_pop(L, 2);
 
+        if (strcmp("content", key) == 0)
+        {
+            lua_getfield(L, -1, "content");
+            return 1;
+        }
+
+        lua_pop(L, 1);
 
         // TODO: Improve
         if (strcmp("x", key) == 0)
@@ -2112,6 +2117,13 @@ static struct wg_internal* wg_alloc(enum wg_type engine_type, size_t size)
     size += sizeof(struct wg_jumptable_base*);
 
     struct wg_internal* const widget = lua_newuserdata(lua_state, size);
+
+    lua_getglobal(lua_state, "_widgets");
+    lua_pushlightuserdata(lua_state, widget);
+    lua_pushvalue(lua_state, -3);
+    lua_settable(lua_state, -3);
+    lua_pop(lua_state, 1);
+
     struct wg_internal* parent = (struct wg_internal*)lua_topointer(lua_state, -3);
 
     if (!widget)
@@ -2197,11 +2209,7 @@ static struct wg_internal* wg_alloc(enum wg_type engine_type, size_t size)
 
     tweener_init(widget);
 
-    lua_getglobal(lua_state, "_widgets");
-    lua_pushlightuserdata(lua_state, widget);
-    lua_pushvalue(lua_state, -3);
-    lua_settable(lua_state, -3);
-    lua_pop(lua_state, 1);
+
 
     return widget;
 }
