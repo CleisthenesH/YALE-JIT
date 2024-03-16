@@ -350,7 +350,7 @@ static void lua_pushwidget(lua_State* L, struct wg_internal* wg)
 
     lua_pushlightuserdata(L, wg);
     lua_gettable(L, -2);
-    lua_replace(L, -3);
+    lua_replace(L, -4);
     lua_pop(L, 2);
 }
 
@@ -814,7 +814,7 @@ static void call_moves(struct wg_piece_internal* piece)
 
     if (!lua_istable(lua_state, -1))
     {
-        lua_pop(lua_state, 2);
+        lua_pop(lua_state, 1);
         return;
     }
 
@@ -852,7 +852,7 @@ static void call_moves(struct wg_piece_internal* piece)
         lua_pop(lua_state, 1);
     }
 
-    lua_pop(lua_state, 2);
+    lua_pop(lua_state, 1);
 }
 
 static void call_valid_move(struct wg_zone_internal* const zone, struct wg_piece_internal* const piece, bool valid)
@@ -942,7 +942,7 @@ static void call_lua(struct wg_internal* const wg, const char* key, struct wg_in
         lua_pcall(lua_state, 1, 0, 0);
     }
 
-    lua_pop(lua_state, 3);
+    lua_pop(lua_state, 2);
 }
 
 void call_left_click(struct wg_internal* wg)
