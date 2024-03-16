@@ -2076,6 +2076,11 @@ struct wg_piece* wg_alloc_piece(size_t size, struct wg_jumptable_piece* jumptabl
     wg->snappable = false;
     wg->jumptable = (struct wg_jumptable_piece*)jumptable;
 
+    struct keyframe keyframe;
+    tweener_destination(wg->parent, &keyframe);
+    keyframe.t = current_timestamp + 0.2;
+    tweener_push(wg, &keyframe);
+
     return (struct wg_piece*)wg_public((struct wg_internal*)wg);
 }
 
