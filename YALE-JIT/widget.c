@@ -1995,7 +1995,7 @@ void wg_alloc_wire_in(struct wg_internal* const wg)
     }
 
     lua_pushlightuserdata(lua_state, wg);
-    lua_pushvalue(lua_state, -4);
+    lua_pushvalue(lua_state, -5);
     lua_settable(lua_state, -3);
     lua_pop(lua_state, 3);
 }
