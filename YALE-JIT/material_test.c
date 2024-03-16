@@ -57,6 +57,7 @@ static void draw(const struct wg_base* const wg)
 {
 	const struct material_test* const material_test = (const struct material_test* const)wg;
 
+	material_point(material_test->material, mouse_x, mouse_y);
 	material_apply(material_test->material);
 
 	if (material_test->bitmap)
@@ -72,12 +73,6 @@ static void mask(const struct wg_base* const wg)
 {
 	al_draw_filled_rectangle(-wg->half_width, -wg->half_height, wg->half_width, wg->half_height,
 		al_map_rgb(0, 255, 0));
-}
-
-static void update(const struct wg_base* const wg)
-{
-	struct material_test* const handle = (struct material_test* const)wg;
-	material_point(handle->material, mouse_x, mouse_y);
 }
 
 static int newindex(lua_State* L)
@@ -130,7 +125,6 @@ const struct wg_jumptable_base material_test_jumptable =
 
 	.draw = draw,
 	.mask = mask,
-	.update = update,
 
 	.newindex = newindex
 };

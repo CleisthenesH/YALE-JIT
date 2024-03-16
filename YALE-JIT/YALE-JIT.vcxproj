@@ -203,6 +203,7 @@
     <ClCompile Include="button.c" />
     <ClCompile Include="counter.c" />
     <ClCompile Include="drop_down.c" />
+    <ClCompile Include="frame.c" />
     <ClCompile Include="keyframe.c" />
     <ClCompile Include="main.c" />
     <ClCompile Include="lua_lib.c" />

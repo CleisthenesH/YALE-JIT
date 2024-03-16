@@ -28,17 +28,18 @@ struct wg_zone
 	bool valid_move;
 	bool highlighted;
 	bool nominated;
-
-	size_t allocated;
-	size_t used;
-	struct wg_piece** pieces;
 };
 
 struct wg_piece
 {
 	struct wg_base;
+};
 
-	struct wg_zone* zone;
+struct wg_frame
+{
+	struct wg_base;
+
+	struct widget_pallet* pallet;
 };
 
 struct wg_hud
@@ -63,15 +64,16 @@ struct wg_jumptable_base
 	const char* type;
 
 	void (*draw)(const struct wg_base* const);
-	void (*update)(struct wg_base* const);
-	void (*event_handler)(struct wg_base* const);
 	void (*mask)(const struct wg_base* const);
+
+	void (*event_handler)(struct wg_base* const);
 
 	void (*hover_start)(struct wg_base* const);
 	void (*hover_end)(struct wg_base* const);
 
 	void (*left_click)(struct wg_base* const);
-	void (*left_click_end)(struct wg_base* const);
+	void (*left_held)(struct wg_base* const);
+	void (*left_release)(struct wg_base* const);
 	void (*right_click)(struct wg_base* const);
 	void (*click_off)(struct wg_base* const);
 
@@ -102,6 +104,11 @@ struct wg_jumptable_piece
 	struct wg_jumptable_base;
 };
 
+struct wg_jumptable_frame
+{
+	struct wg_jumptable_base;
+};
+
 struct wg_jumptable_hud
 {
 	struct wg_jumptable_base;
@@ -113,6 +120,7 @@ struct wg_jumptable_hud
 
 struct wg_zone* wg_alloc_zone(size_t, struct wg_jumptable_zone*);
 struct wg_piece* wg_alloc_piece(size_t, struct wg_jumptable_piece*);
+struct wg_frame* wg_alloc_frame(size_t, struct wg_jumptable_frame*);
 struct wg_hud* wg_alloc_hud(size_t, struct wg_jumptable_hud*);
 
 /*********************************************/

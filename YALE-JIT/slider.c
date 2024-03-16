@@ -28,7 +28,7 @@ const struct wg_jumptable_hud slider_jumptable;
 
 const double slider_padding = 16;	
 
-static inline void clap(struct slider* const slider)
+static inline void clamp(struct slider* const slider)
 {
 	if (slider->progress < 0)
 		slider->progress = 0;
@@ -79,12 +79,9 @@ static void mask(const struct wg_base* const wg)
 		al_map_rgb(255,255,255));
 }
 
-static void update(struct wg_base* const wg)
+static void left_held(struct wg_base* const wg)
 {
 	struct slider* const slider = (const struct slider* const)wg;
-
-	if (slider->hud_state != HUD_ACTIVE)
-		return;
 
 	double x = mouse_x;
 	double y = mouse_y;
@@ -92,7 +89,7 @@ static void update(struct wg_base* const wg)
 
 	slider->progress = x / (2 * (slider->half_width - slider_padding)) + 0.5;
 
-	clap(slider);
+	clamp(slider);
 }
 
 static void left_click(struct wg_base* const wg)
@@ -102,7 +99,7 @@ static void left_click(struct wg_base* const wg)
 	slider->hud_state = HUD_ACTIVE;
 }
 
-static void left_click_end(struct wg_base* const wg)
+static void left_release(struct wg_base* const wg)
 {
 	struct slider* const slider = (const struct slider* const)wg;
 
@@ -152,7 +149,7 @@ static int newindex(lua_State* L)
 		if (strcmp(key, "value") == 0)
 		{
 			slider->progress = (luaL_checknumber(L, -1) -slider->start)/ (slider->end - slider->start);
-			clap(slider);
+			clamp(slider);
 
 			return 1;
 		}
@@ -160,7 +157,7 @@ static int newindex(lua_State* L)
 		if (strcmp(key, "progress") == 0)
 		{
 			slider->progress = luaL_checknumber(L, -1);
-			clap(slider);
+			clamp(slider);
 
 			return 1;
 		}
@@ -189,10 +186,10 @@ const struct wg_jumptable_hud slider_jumptable =
 
 	.draw = draw,
 	.mask = mask,
-	.update = update,
+	.left_held = left_held,
 
 	.left_click = left_click,
-	.left_click_end = left_click_end,
+	.left_release = left_release,
 
 	.index = index,
 	.newindex = newindex,
@@ -230,7 +227,7 @@ int slider_new(lua_State* L)
 	slider->start = start;
 	slider->end = end;
 
-	clap(slider);
+	clamp(slider);
 
 	const double min_half_width = 175;
 	const double min_half_height = 16;

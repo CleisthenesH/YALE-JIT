@@ -116,7 +116,7 @@ static void mask(const struct wg_base* const wg)
 		x += draw_tile(selector, x, selector->hover + 1, (selector->r > 0.5) ? (selector->r - 0.5) : 0);
 }
 
-static void update(struct wg_base* const wg)
+static void left_held(struct wg_base* const wg)
 {
 	struct tile_selector* const selector = (const struct tile_selector* const)wg;
 
@@ -220,7 +220,7 @@ const struct wg_jumptable_hud tile_selector_jumptable =
 	.draw = draw,
 	.mask = mask,
 
-	.update = update,
+	.left_held = left_held,
 
 	.index = index
 };

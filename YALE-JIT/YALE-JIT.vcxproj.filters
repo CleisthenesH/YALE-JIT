@@ -101,6 +101,9 @@
     <ClCompile Include="drop_down.c">
       <Filter>widgets\HUD</Filter>
     </ClCompile>
+    <ClCompile Include="frame.c">
+      <Filter>widgets\HUD</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="thread_pool.h">
