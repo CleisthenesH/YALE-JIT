@@ -1450,27 +1450,9 @@ void widget_engine_draw()
 #endif
 }
 
-// Update the widget engine state
+// Update the widget engine, done while widget tweeners are processing.
 void widget_engine_update()
 {
-    //TODO move the tweening work to the threadpool
-    struct wg_internal* zone = (struct wg_internal*)root_board->head;
-
-    while (zone)
-    {
-        tweener_blend(zone);
-
-        struct wg_internal* piece = zone->head;
-
-        while (piece)
-        {
-            tweener_blend(piece);
-            piece = piece->next;
-        }
-
-        zone = zone->next;
-    }
-
     if (widget_engine_state == ENGINE_STATE_TABBED_OUT)
         return;
 
@@ -1532,7 +1514,27 @@ void widget_engine_update()
 // Make a work queue with only the widgets that have an update method.
 struct work_queue* widget_engine_widget_work()
 {
-    return work_queue_create();
+    struct work_queue* work_queue = work_queue_create();
+
+    if (widget_engine_state == ENGINE_STATE_TABBED_OUT)
+        return work_queue;
+
+    for (struct wg_internal* zone = root_board->head; zone; zone = zone->next)
+        work_queue_push(work_queue, tweener_blend, zone);
+
+    for (struct wg_internal* zone = root_board->head; zone; zone = zone->next)
+        for (struct wg_internal* piece = zone->head; piece; piece = piece->next)
+            work_queue_push(work_queue, tweener_blend, piece);
+
+    for (struct wg_internal* frame = root_hud->head; frame; frame = frame->next)
+    {
+        work_queue_push(work_queue, tweener_blend, frame);
+
+        for (struct wg_internal* hud = frame->head; hud; hud = hud->next)
+            work_queue_push(work_queue, tweener_blend, hud);
+    }
+
+    return work_queue;
 }
 
 // Handle events by calling all widgets that have a event handler.
