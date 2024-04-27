@@ -75,6 +75,7 @@ struct wg_header
 {
     enum wg_type type;
 
+    // Hierarchy
     struct wg_internal* next;
     struct wg_internal* previous;
     union {
@@ -85,17 +86,11 @@ struct wg_header
 		struct wg_internal* parent;
     };
 
-
-    struct
-    {
-        // Keypoints
-        size_t used, allocated;
-        struct keyframe* keypoints;
-
-        // Looping data
-        size_t looping_idx;
-        double looping_time;
-    }tweener;
+    // Bézier
+    struct keyframe ctrl1;
+    struct keyframe ctrl2;
+    struct keyframe dest;
+    double t;
 };
 
 struct wg_internal
@@ -198,6 +193,79 @@ static void wg_remove(struct wg_internal* const leaf)
 		leaf->previous->next = leaf->next;
 	else if (parent && parent->head == leaf)
 		parent->head = leaf->next;
+}
+
+/*********************************************/
+/*                  Bézier                   */
+/*********************************************/
+
+// The widget wg is controled through a standard 
+//  Cubic Bézier Curve with the following points:
+// P0: &wg_keyframe(wg)
+// P1: wg->ctrl1
+// P2: wg->ctrl2
+// P3: wg->dest
+
+static void wg_bezier_set(struct wg_internal* wg, struct keyframe* keyframe)
+{
+    if (keyframe)
+    {
+        keyframe_copy(wg_keyframe(wg), keyframe);
+        keyframe_copy(&wg->ctrl1, keyframe);
+        keyframe_copy(&wg->ctrl2, keyframe);
+        keyframe_copy(&wg->dest, keyframe);
+    }
+    else
+    {
+        keyframe_default(wg_keyframe(wg));
+        keyframe_default(&wg->ctrl1);
+        keyframe_default(&wg->ctrl2);
+        keyframe_default(&wg->dest);
+    }
+
+    wg->t = current_timestamp;
+}
+
+static void wg_bezier_update(struct wg_internal* wg)
+{
+    const double dt = wg->t - current_timestamp;
+
+    if (dt < 0.0)
+        return;
+
+    if (delta_timestamp >= dt)
+    {
+        wg_bezier_set(wg, &wg->dest);
+        return;
+    }
+
+    // Warning: Standard numeric stability concerns.
+    double const blend = delta_timestamp / (wg->t - current_timestamp);
+
+    struct keyframe* const bezier[4] = {
+        wg_keyframe(wg),
+        &wg->ctrl1,
+        &wg->ctrl2,
+        &wg->dest
+    };
+
+    keyframe_blend(bezier[0], bezier[1], bezier[0], blend);
+    keyframe_blend(bezier[1], bezier[2], bezier[1], blend);
+    keyframe_blend(bezier[2], bezier[3], bezier[2], blend);
+
+    keyframe_blend(bezier[0], bezier[1], bezier[0], blend);
+    keyframe_blend(bezier[1], bezier[2], bezier[1], blend);
+    
+    keyframe_blend(bezier[0], bezier[1], bezier[0], blend);
+}
+
+static void wg_bezier_interupt(struct wg_internal* wg)
+{
+    keyframe_copy(&wg->ctrl1, wg_keyframe(wg));
+    keyframe_copy(&wg->ctrl2, wg_keyframe(wg));
+    keyframe_copy(&wg->dest, wg_keyframe(wg));
+
+    wg->t = current_timestamp;
 }
 
 /*********************************************/
@@ -401,165 +469,6 @@ static struct wg_internal* current_hover;
 static struct wg_internal* current_drop;
 
 /*********************************************/
-/*             Keyframe Tweener              */
-/*********************************************/
-
-static void tweener_init(struct wg_internal* const wg)
-{
-    size_t hint = 1;
-
-    wg->tweener.used = 1;
-    wg->tweener.allocated = hint;
-    wg->tweener.keypoints = malloc(hint * sizeof(struct keyframe));
-    wg->tweener.looping_time = -1;
-    wg->tweener.looping_idx = 0;
-
-    keyframe_copy(wg->tweener.keypoints, wg_keyframe(wg));
-}
-
-static void tweener_gc(struct wg_internal* const wg)
-{
-    free(wg->tweener.keypoints);
-}
-
-static void tweener_blend_nonlooping(struct wg_internal* const wg)
-{
-    // Clean old frames
-    size_t first_future_frame = 0;
-
-    while (wg->tweener.keypoints[first_future_frame].t < current_timestamp &&
-        first_future_frame < wg->tweener.used)
-        first_future_frame++;
-
-    if (first_future_frame > 1)
-    {
-        const size_t step = first_future_frame - 1;
-
-        for (size_t i = step; i < wg->tweener.used; i++)
-            keyframe_copy(&(wg->tweener.keypoints[(i - step)]),
-                &(wg->tweener.keypoints[i]));
-
-        wg->tweener.used -= step;
-
-        if (wg->tweener.used == 1)
-        {
-            keyframe_copy(wg_keyframe(wg), wg->tweener.keypoints);
-
-            return;
-        }
-    }
-
-    const double denominator = (wg->tweener.keypoints[1].t - wg->tweener.keypoints[0].t);
-    const double blend = (current_timestamp - wg->tweener.keypoints[0].t) / denominator;
-
-    keyframe_blend(wg_keyframe(wg), wg->tweener.keypoints + 1, wg->tweener.keypoints, blend);
-}
-
-static void tweener_blend_looping(struct wg_internal* const wg)
-{
-    while (wg->tweener.keypoints[wg->tweener.looping_idx].t <= current_timestamp)
-    {
-        const size_t back_idx = (wg->tweener.looping_idx >= 1) ?
-            wg->tweener.looping_idx - 1 : wg->tweener.used - 1;
-
-        wg->tweener.keypoints[back_idx].t += wg->tweener.looping_time;
-
-        wg->tweener.looping_idx = (wg->tweener.looping_idx != SIZE_MAX) ?
-            (wg->tweener.looping_idx + 1) % wg->tweener.used : 0;
-    }
-
-    const size_t end_idx = wg->tweener.looping_idx;
-    const size_t start_idx = (wg->tweener.looping_idx >= 1) ?
-        (wg->tweener.looping_idx - 1) : wg->tweener.used - 1;
-
-    const double blend = (current_timestamp - wg->tweener.keypoints[start_idx].t) /
-        (wg->tweener.keypoints[end_idx].t - wg->tweener.keypoints[start_idx].t);
-
-    keyframe_blend(wg_keyframe(wg), wg->tweener.keypoints + 1, wg->tweener.keypoints, blend);
-}
-
-static void tweener_blend(struct wg_internal* const wg)
-{
-    if (wg->tweener.used > 1)
-        if (wg->tweener.looping_time > 0)
-            tweener_blend_looping(wg);
-        else
-            tweener_blend_nonlooping(wg);
-}
-
-static void tweener_set(struct wg_internal* const wg, struct keyframe* keypoint)
-{
-    wg->tweener.used = 1;
-    wg->tweener.looping_time = -1;
-
-    keyframe_copy(wg_keyframe(wg), keypoint);
-    keyframe_copy(wg->tweener.keypoints, keypoint);
-}
-
-static void tweener_push(struct wg_internal* const wg, struct keyframe* keypoint)
-{
-    if (keypoint->t - wg->tweener.keypoints[wg->tweener.used - 1].t < 0.01)
-        return;
-
-    if (wg->tweener.allocated <= wg->tweener.used)
-    {
-        const size_t new_cnt = 2 * wg->tweener.allocated;
-
-        struct keyframe* memsafe_hande = realloc(wg->tweener.keypoints, new_cnt * sizeof(struct keyframe));
-
-        // TODO: raise error
-        if (!memsafe_hande)
-            return;
-
-        wg->tweener.keypoints = memsafe_hande;
-        wg->tweener.allocated = new_cnt;
-    }
-
-    if (wg->tweener.used == 1)
-        wg->tweener.keypoints[0].t = current_timestamp;
-
-    keyframe_copy(wg->tweener.keypoints + wg->tweener.used++, keypoint);
-}
-
-static void tweener_interupt(struct wg_internal* const wg)
-{
-    if (wg->tweener.used > 1)
-        tweener_blend(wg);
-
-    wg->tweener.used = 1;
-    wg->tweener.looping_time = -1;
-
-    keyframe_copy(wg->tweener.keypoints, wg_keyframe(wg));
-}
-
-static void tweener_destination(struct wg_internal* const wg, struct keyframe* keypoint)
-{
-    keyframe_copy(keypoint, wg->tweener.keypoints + wg->tweener.used - 1);
-}
-
-static void tweener_enter_loop(struct wg_internal* wg, double loop_offset)
-{
-    if (wg->tweener.used < 2)
-        return;
-
-    // TODO: Can optimize using a division to get loops
-    size_t idx = 0;
-    size_t loops = 0;
-    const double loop_time = wg->tweener.keypoints[wg->tweener.used - 1].t - wg->tweener.keypoints[0].t + loop_offset;
-
-    while (wg->tweener.keypoints[idx].t <= current_timestamp - ((double)loops) * loop_time)
-        if (++idx == wg->tweener.used)
-            loops++, idx = 0;
-
-    if (loops)
-        for (size_t i = 0; i < wg->tweener.used; i++)
-            wg->tweener.keypoints[i].t += ((double)loops) * loop_time;
-
-    wg->tweener.looping_idx = idx;
-    wg->tweener.looping_time = loop_time;
-}
-
-/*********************************************/
 /*                   Camera                  */
 /*********************************************/
 
@@ -659,7 +568,7 @@ void widget_interface_shader_predraw()
     glDisable(GL_STENCIL_TEST);
     al_set_shader_float("current_timestamp", current_timestamp);
 
-    tweener_blend(&camera);
+    wg_bezier_update(&camera);
 }
 
 static void mask_widget(struct wg_internal* wg, size_t* picker_index)
@@ -1093,15 +1002,8 @@ void call_drag_end_drop(struct wg_internal* wg, struct wg_internal* wg2)
     wg_remove(wg2);
     wg_append((struct wg_internal*)zone, wg2);
 
-    struct keyframe keyframe;
-
-    tweener_interupt(wg2);
-
-    keyframe_copy(&keyframe, wg_keyframe(wg));
-
-    keyframe.t = current_timestamp + 0.1;
-
-    tweener_push(current_hover, &keyframe);
+    keyframe_copy(&current_hover->dest, wg_keyframe(wg));
+    current_hover->t = current_timestamp + 0.1;
 
     if (wg->jumptable->drag_end_drop)
         wg->jumptable->drag_end_drop(wg_public(wg), wg_public(wg2));
@@ -1201,14 +1103,11 @@ static void draw_widget(const struct wg_internal* const wg)
 static inline void towards_drag()
 {
     struct keyframe keyframe = drag_release;
-
-    tweener_interupt(current_hover);
-
     keyframe.dx = mouse_x - drag_offset_x;
     keyframe.dy = mouse_y - drag_offset_y;
-    keyframe.t  = current_timestamp + 0.1;
 
-    tweener_push(current_hover, &keyframe);
+    keyframe_copy(&current_hover->dest, &drag_release);
+    current_hover->t = current_timestamp + 0.1;
 }
 
 // Updates and calls any callbacks for the last_click, current_hover, current_drop pointers
@@ -1258,16 +1157,15 @@ static inline void update_drag_pointers()
 
 			if (new_pointer->snappable)
 			{
-                tweener_interupt(current_hover);
+                struct keyframe snap_target;    
 
-				struct keyframe snap_target;
-                tweener_destination(new_pointer, &snap_target);
+                keyframe_copy(&snap_target, &new_pointer->dest);
 
 				snap_target.dx += snap_offset_x;
 				snap_target.dy += snap_offset_y;
-				snap_target.t = current_timestamp + 0.1;
 
-                tweener_push(current_hover, &snap_target);
+                keyframe_copy(&current_hover->dest, &snap_target);
+                current_hover->t = current_timestamp + 0.1;
 
 				widget_engine_state = ENGINE_STATE_TO_SNAP;
 			}
@@ -1378,11 +1276,8 @@ static void process_mouse_up(unsigned int button, bool allow_drag_end_drop)
     case ENGINE_STATE_SNAP:
     case ENGINE_STATE_TO_SNAP:
     case ENGINE_STATE_TO_DRAG:
-        tweener_interupt(current_hover);
-
-        drag_release.t = current_timestamp + 0.1;
-
-        tweener_push(current_hover, &drag_release);
+        keyframe_copy(&current_hover->dest, &drag_release);
+        current_hover->t = current_timestamp + 0.1;
 
         if (current_drop && allow_drag_end_drop)
         {
@@ -1499,7 +1394,7 @@ void widget_engine_update()
         buffer.dx = cos(camera.a)*tx+sin(camera.a)*ty;
         buffer.dy = -sin(camera.a)*tx+cos(camera.a)*ty;
 
-        tweener_set(current_hover, &buffer);
+        wg_bezier_set(current_hover, &buffer);
 
         break;
     }
@@ -1520,18 +1415,18 @@ struct work_queue* widget_engine_widget_work()
         return work_queue;
 
     for (struct wg_internal* zone = root_board->head; zone; zone = zone->next)
-        work_queue_push(work_queue, tweener_blend, zone);
+        work_queue_push(work_queue, wg_bezier_update, zone);
 
     for (struct wg_internal* zone = root_board->head; zone; zone = zone->next)
         for (struct wg_internal* piece = zone->head; piece; piece = piece->next)
-            work_queue_push(work_queue, tweener_blend, piece);
+            work_queue_push(work_queue, wg_bezier_update, piece);
 
     for (struct wg_internal* frame = root_hud->head; frame; frame = frame->next)
     {
-        work_queue_push(work_queue, tweener_blend, frame);
+        work_queue_push(work_queue, wg_bezier_update, frame);
 
         for (struct wg_internal* hud = frame->head; hud; hud = hud->next)
-            work_queue_push(work_queue, tweener_blend, hud);
+            work_queue_push(work_queue, wg_bezier_update, hud);
     }
 
     return work_queue;
@@ -1585,7 +1480,7 @@ void widget_engine_event_handler()
                 {
                     widget_engine_state = ENGINE_STATE_EMPTY_DRAG;
 
-                    tweener_interupt(&camera);
+                    wg_bezier_interupt(&camera);
                 }
 
             break;
@@ -1605,7 +1500,7 @@ void widget_engine_event_handler()
             drag_offset_x = mouse_x - current_hover->dx;
             drag_offset_y = mouse_y - current_hover->dy;
 
-            tweener_destination(current_hover, &drag_release);
+            keyframe_copy(&drag_release,&current_hover->dest);
         }
        
         break;
@@ -1655,7 +1550,7 @@ static int set_keyframe(lua_State* L)
     keyframe_default(&keyframe);
     lua_getkeyframe(-1, &keyframe);
 
-    tweener_set(wg, &keyframe);
+    wg_bezier_set(wg, &keyframe);
 
     return 0;
 }
@@ -1671,7 +1566,14 @@ static int push_keyframe(lua_State* L)
 
     lua_getkeyframe(-1, &keyframe);
 
-    tweener_push(wg, &keyframe);
+    keyframe_copy(&wg->dest, &keyframe);
+    lua_getfield(L, -1, "t");
+
+    if (lua_type(lua_state, -1) == LUA_TNUMBER)
+        wg->t = lua_tonumber(lua_state, -1);
+    else
+        wg->t = current_timestamp;
+
     return 0;
 }
 
@@ -1712,7 +1614,15 @@ static int camera_push(lua_State* L)
 
     lua_getkeyframe(-1, &keyframe);
 
-    tweener_push(&camera, &keyframe);
+    keyframe_copy(wg_keyframe(&camera), & keyframe);
+
+    lua_getfield(L, -1, "t");
+
+    if (lua_type(lua_state, -1) == LUA_TNUMBER)
+        camera.t = lua_tonumber(lua_state, -1);
+    else
+        camera.t = current_timestamp;
+
     return 0;
 }
 
@@ -1726,7 +1636,7 @@ static int camera_set(lua_State* L)
     keyframe_default(&keyframe);
     lua_getkeyframe(-1, &keyframe);
 
-    tweener_set(&camera, &keyframe);
+    wg_bezier_set(&camera, &keyframe);
 
     return 0;
 }
@@ -1953,7 +1863,7 @@ void widget_engine_init()
 
     // Camera
     keyframe_default(wg_keyframe(&camera));
-    tweener_init(&camera);
+    wg_bezier_set(&camera,NULL);
     lua_pushcfunction(lua_state, camera_push);
     lua_setglobal(lua_state, "camera_push");
 
@@ -2025,10 +1935,11 @@ static struct wg_internal* wg_alloc(enum wg_type type, size_t size)
     wg_alloc_wire_in(widget);
 
     // Process keyframes and tweener
-    keyframe_default((struct keyframe* const)wg_keyframe(widget));
-    lua_getkeyframe(-2, (struct keyframe* const)wg_keyframe(widget));
+    struct keyframe keyframe;
+    keyframe_default(&keyframe);
+    lua_getkeyframe(-2, &keyframe);
     lua_cleankeyframe(-2);
-    tweener_init(widget);
+    wg_bezier_set(widget, &keyframe);
 
     // Read and Set Width and Height
     lua_getfield(lua_state, -2, "width");
@@ -2078,10 +1989,7 @@ struct wg_piece* wg_alloc_piece(size_t size, struct wg_jumptable_piece* jumptabl
     wg->snappable = false;
     wg->jumptable = (struct wg_jumptable_piece*)jumptable;
 
-    struct keyframe keyframe;
-    tweener_destination(wg->parent, &keyframe);
-    keyframe.t = current_timestamp + 0.2;
-    tweener_push(wg, &keyframe);
+    wg_bezier_set(wg, wg_keyframe(wg->parent));
 
     return (struct wg_piece*)wg_public((struct wg_internal*)wg);
 }

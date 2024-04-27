@@ -1,13 +1,13 @@
-// Copyright 2023 Kieran W Harvie. All rights reserved.
+// Copyright 2023-2024 Kieran W Harvie. All rights reserved.
 // Use of this source code is governed by an MIT-style
 // license that can be found in the LICENSE file.
 #pragma once
 #include <allegro5/allegro.h>
 
-// Time, x-position, y-position, x-scale, y-scale, angle, camera, x-offset, y-offset
+// x-position, y-position, x-scale, y-scale, angle, camera, x-offset, y-offset
 struct keyframe
 {
-    double t, x, y, sx, sy, a, c, dx, dy;
+    double x, y, sx, sy, a, c, dx, dy;
 };
 
 // Keyframe methods
