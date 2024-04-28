@@ -1,4 +1,4 @@
-// Copyright 2023 Kieran W Harvie. All rights reserved.
+// Copyright 2023-2024 Kieran W Harvie. All rights reserved.
 // Use of this source code is governed by an MIT-style
 // license that can be found in the LICENSE file.
 
@@ -51,8 +51,8 @@ static void draw(const struct wg_base* const wg)
 	else
 		fill = pallet->highlight;
 
-	al_draw_filled_rounded_rectangle(-wg->half_width, -wg->half_height,
-		wg->half_width, wg->half_height,
+	al_draw_filled_rounded_rectangle(-wg->hw, -wg->hh,
+		wg->hw, wg->hh,
 		pallet->edge_radius, pallet->edge_radius,
 		fill);
 
@@ -64,26 +64,26 @@ static void draw(const struct wg_base* const wg)
 	if (text_entry->input_size == 0)
 	{
 		al_draw_text(pallet->font, pallet->deactivated,
-			-wg->half_width + text_left_padding,-16, 0,
+			-wg->hw + text_left_padding,-16, 0,
 			text_entry->place_holder);
 	}
 	else {
 		const auto text_width = al_get_text_width(pallet->font, text_entry->input);
 
-		if (text_width > 2 * wg->half_width - text_left_padding)
+		if (text_width > 2 * wg->hw - text_left_padding)
 			al_draw_text(pallet->font, pallet->activated,
-				wg->half_width - text_width, -16,
+				wg->hw - text_width, -16,
 				0, text_entry->input);
 		else
 			al_draw_text(pallet->font, pallet->activated,
-				-wg->half_width + text_left_padding, -16,
+				-wg->hw + text_left_padding, -16,
 				0, text_entry->input);
 	}
 
 	glDisable(GL_STENCIL_TEST);
 
-	al_draw_rounded_rectangle(-wg->half_width, -wg->half_height,
-		wg->half_width, wg->half_height,
+	al_draw_rounded_rectangle(-wg->hw, -wg->hh,
+		wg->hw, wg->hh,
 		pallet->edge_radius, pallet->edge_radius,
 		pallet->edge, pallet->edge_width);
 }
@@ -93,7 +93,7 @@ static void mask(const struct wg_base* const wg)
 	const struct text_entry* const text_entry = (const struct text_entry* const)wg;
 	const struct widget_pallet* const pallet = text_entry->pallet;
 
-	al_draw_filled_rounded_rectangle(-wg->half_width, -wg->half_height, wg->half_width, wg->half_height,
+	al_draw_filled_rounded_rectangle(-wg->hw, -wg->hh, wg->hw, wg->hh,
 		pallet->edge_radius, pallet->edge_radius,
 		al_map_rgb(255, 0, 0));
 }
@@ -214,31 +214,55 @@ const struct wg_jumptable_base text_entry_jumptable =
 
 int text_entry_new(lua_State* L)
 {
-	// Get the text len so we know how munch memory to alloc
+	if (!lua_istable(L, -1))
+		lua_newtable(L);
+
+	// Set default text.
+	// Also retreve paramaters for size allocation.
 	size_t text_len = 21;
-	char* text = NULL;
+	char* text = "Click to enter text.";
 
-	if (lua_istable(L, -1))
+	lua_getfield(L, -1, "text");
+
+	if (lua_isstring(L, -1))
+		text = lua_tolstring(L, -1, &text_len);
+	else
 	{
-		lua_getfield(L, -1, "text");
-
-		if (lua_isstring(L, -1))
-			text = lua_tolstring(L, -1, &text_len);
-
-		lua_pop(L, 1);
+		lua_pushstring(L, "Click to enter text.");
+		lua_setfield(L, -3, "text");
 	}
 
-	const size_t size = sizeof(struct text_entry) + sizeof(char) * (text_len + 1);
+	lua_pop(L, 1);
 
+	// Set default hh.
+	lua_getfield(L, -1, "hh");
+
+	if (!lua_isnumber(L, -1))
+	{
+		lua_pushnumber(L, 25);
+		lua_setfield(L, -3, "hh");
+	}
+
+	lua_pop(L, 1);
+
+	// Set default hw.
+	lua_getfield(L, -1, "hw");
+
+	if (!lua_isnumber(L, -1))
+	{
+		lua_pushnumber(L, 300);
+		lua_setfield(L, -3, "hw");
+	}
+
+	lua_pop(L, 1);
+
+	const size_t size = sizeof(struct text_entry) + sizeof(char) * (text_len + 1);
 	struct text_entry* text_entry = (struct text_entry*)wg_alloc_hud(size, &text_entry_jumptable);
 
-	strcpy_s(text_entry->place_holder, text_len + 1, text ? text : "Click to enter text.");
+	strcpy_s(text_entry->place_holder, text_len + 1, text);
 
 	text_entry->input[0] = '\0';
 	text_entry->input_size = 0;
-
-	text_entry->half_width = 300 > text_entry->half_width ? 300 : text_entry->half_width;
-	text_entry->half_height = 20 > text_entry->half_height ? 20 : text_entry->half_height;
 
 	return 1;
 }

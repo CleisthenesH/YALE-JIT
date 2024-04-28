@@ -18,11 +18,11 @@ static void draw(const struct wg_base* const wg)
 	const struct frame* const frame = (const struct frame* const)wg;
 	const struct widget_pallet* const pallet = frame->pallet;
 
-	al_draw_filled_rounded_rectangle(-wg->half_width, -wg->half_height, wg->half_width, wg->half_height,
+	al_draw_filled_rounded_rectangle(-wg->hw, -wg->hh, wg->hw, wg->hh,
 		pallet->edge_radius, pallet->edge_radius,
 		pallet->main);
 
-	al_draw_rounded_rectangle(-wg->half_width, -wg->half_height, wg->half_width, wg->half_height,
+	al_draw_rounded_rectangle(-wg->hw, -wg->hh, wg->hw, wg->hh,
 		pallet->edge_radius, pallet->edge_radius,
 		pallet->edge, pallet->edge_width);
 }
@@ -31,7 +31,7 @@ static void mask(const struct wg_base* const wg)
 {
 	const struct frame* const frame = (const struct frame* const)wg;
 
-	al_draw_filled_rounded_rectangle(-wg->half_width, -wg->half_height, wg->half_width, wg->half_height,
+	al_draw_filled_rounded_rectangle(-wg->hw, -wg->hh, wg->hw, wg->hh,
 		frame->pallet->edge_radius, frame->pallet->edge_radius,
 		al_map_rgb(255, 255, 255));
 }

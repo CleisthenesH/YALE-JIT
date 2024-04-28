@@ -56,15 +56,15 @@ static void draw(const struct wg_base* const wg)
 	struct tile_selector* selector = (struct tile_selector*)wg;
 	const struct widget_pallet* const pallet = selector->pallet;
 
-	al_draw_filled_rounded_rectangle(-wg->half_width, -selector->small, wg->half_width, selector->small,
+	al_draw_filled_rounded_rectangle(-wg->hw, -selector->small, wg->hw, selector->small,
 		pallet->edge_radius, pallet->edge_radius,
 		pallet->highlight);
 
-	al_draw_rounded_rectangle(-wg->half_width, -selector->small, wg->half_width, selector->small,
+	al_draw_rounded_rectangle(-wg->hw, -selector->small, wg->hw, selector->small,
 		pallet->edge_radius, pallet->edge_radius,
 		pallet->edge, pallet->edge_width);
 
-	float x = -wg->half_width;
+	float x = -wg->hw;
 
 	// Draw all pre tiles
 	for (int i = 0; i < selector->hover-1; i++)
@@ -93,9 +93,9 @@ static void mask(const struct wg_base* const wg)
 {
 	struct tile_selector* selector = (struct tile_selector*)wg;
 
-	float x = -wg->half_width+2* selector->small *(selector->hover-1);
+	float x = -wg->hw+2* selector->small *(selector->hover-1);
 
-	al_draw_filled_rounded_rectangle(-wg->half_width, -selector->small, wg->half_width, selector->small,
+	al_draw_filled_rounded_rectangle(-wg->hw, -selector->small, wg->hw, selector->small,
 		selector->pallet->edge_radius, selector->pallet->edge_radius,
 		al_map_rgb(255, 255, 255));
 
@@ -127,7 +127,7 @@ static void left_held(struct wg_base* const wg)
 	double y = mouse_y;
 	widget_screen_to_local(wg, &x, &y);
 
-	x = 0.5*TILE_CNT *(x/selector->half_width+1.0);
+	x = 0.5*TILE_CNT *(x/selector->hw+1.0);
 
 	selector->r = modf(x,&y);
 	selector->hover = (int) y;
@@ -227,29 +227,45 @@ const struct wg_jumptable_hud tile_selector_jumptable =
 
 int tile_selector_new(lua_State* L)
 {
+	if (!lua_istable(L, -1))
+		lua_newtable(L);
+
 	float small = 20;
 	float large = 100;
 
-	if (lua_istable(L, -1))
+	lua_getfield(L, -1, "small");
+
+	if (lua_isnumber(L, -1))
+		small = lua_tonumber(L, -1);
+
+	lua_getfield(L, -2, "large");
+
+	if (lua_isnumber(L, -1))
+		large = lua_tonumber(L, -1);
+
+	lua_pop(L, 2);
+
+	// Set default hh.
+	lua_getfield(L, -1, "hh");
+
+	if (!lua_isnumber(L, -1))
 	{
-		lua_getfield(L, -1, "small");
-
-		if (lua_isnumber(L, -1))
-			small = lua_tonumber(L, -1);
-
-		lua_getfield(L, -2, "large");
-
-		if (lua_isnumber(L, -1))
-			large = lua_tonumber(L, -1);
-
-		lua_pushnumber(L, 2*((TILE_CNT - 1) * small + large));
-		lua_setfield(L, -4, "width");
-
-		lua_pushnumber(L, 2 * large);
-		lua_setfield(L, -4, "height");
-
-		lua_pop(L, 2);
+		lua_pushnumber(L, large);
+		lua_setfield(L, -3, "hh");
 	}
+
+	lua_pop(L, 1);
+
+	// Set default hw.
+	lua_getfield(L, -1, "hw");
+
+	if (!lua_isnumber(L, -1))
+	{
+		lua_pushnumber(L, ((TILE_CNT - 1) * small + large));
+		lua_setfield(L, -3, "hw");
+	}
+
+	lua_pop(L, 1);
 
 	struct tile_selector* selector = (struct tile_selector*)wg_alloc_hud(sizeof(struct tile_selector), &tile_selector_jumptable);
 

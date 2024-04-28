@@ -1,4 +1,4 @@
-// Copyright 2023 Kieran W Harvie. All rights reserved.
+// Copyright 2023-2024 Kieran W Harvie. All rights reserved.
 // Use of this source code is governed by an MIT-style
 // license that can be found in the LICENSE file.
 #include "widget.h"
@@ -28,11 +28,11 @@ static void draw(const struct wg_base* const wg)
 	const struct counter* const counter = (const struct counter* const)wg;
 	const struct widget_pallet* const pallet = counter->pallet;
 
-	al_draw_filled_rounded_rectangle(-wg->half_width, -wg->half_height, wg->half_width, wg->half_height,
+	al_draw_filled_rounded_rectangle(-wg->hw, -wg->hh, wg->hw, wg->hh,
 		pallet->edge_radius, pallet->edge_radius,
 		pallet->main);
 
-	al_draw_rounded_rectangle(-wg->half_width, -wg->half_height, wg->half_width, wg->half_height,
+	al_draw_rounded_rectangle(-wg->hw, -wg->hh, wg->hw, wg->hh,
 		pallet->edge_radius, pallet->edge_radius,
 		pallet->edge, pallet->edge_width);
 
@@ -47,7 +47,7 @@ static void draw(const struct wg_base* const wg)
 		ALLEGRO_ALIGN_CENTRE, "%d",
 		counter->value);
 
-	al_draw_rounded_rectangle(-wg->half_width, -wg->half_height, wg->half_width, wg->half_height,
+	al_draw_rounded_rectangle(-wg->hw, -wg->hh, wg->hw, wg->hh,
 		pallet->edge_radius, pallet->edge_radius,
 		pallet->edge, pallet->edge_width);
 }
@@ -57,7 +57,7 @@ static void mask(const struct wg_base* const wg)
 	const struct counter* const counter = (const struct counter* const)wg;
 	const struct widget_pallet* const pallet = counter->pallet;
 
-	al_draw_filled_rounded_rectangle(-wg->half_width, -wg->half_height, wg->half_width, wg->half_height,
+	al_draw_filled_rounded_rectangle(-wg->hw, -wg->hh, wg->hw, wg->hh,
 		pallet->edge_radius, pallet->edge_radius,
 		al_map_rgb(255, 0, 0));
 }
@@ -145,6 +145,31 @@ const struct wg_jumptable_hud counter_jumptable =
 
 int counter_new(lua_State* L)
 {
+	if (!lua_istable(L, -1))
+		lua_newtable(L);
+
+	// Set default hh.
+	lua_getfield(L, -1, "hh");
+
+	if (!lua_isnumber(L, -1))
+	{
+		lua_pushnumber(L, 55);
+		lua_setfield(L, -3, "hh");
+	}
+
+	lua_pop(L, 1);
+
+	// Set default hw.
+	lua_getfield(L, -1, "hw");
+
+	if (!lua_isnumber(L, -1))
+	{
+		lua_pushnumber(L, 55);
+		lua_setfield(L, -3, "hw");
+	}
+
+	lua_pop(L, 1);
+
 	struct counter* counter = (struct counter*)wg_alloc_hud(sizeof(struct counter), &counter_jumptable);
 
 	counter->value = 0;
@@ -164,12 +189,6 @@ int counter_new(lua_State* L)
 
 		lua_pop(L, 2);
 	}
-
-	const double min_half_width = 55;
-	const double min_half_height = 55;
-
-	counter->half_width = min_half_width > counter->half_width ? min_half_width : counter->half_width;
-	counter->half_height = min_half_height > counter->half_height ? min_half_height : counter->half_height;
 
 	return 1;
 }

@@ -31,7 +31,7 @@ static void draw(const struct wg_base* const wg)
 	al_draw_tinted_scaled_bitmap(resource_manager_icon(ICON_ID_MEEPLE),
 		color[meeple->team],
 		0, 0, 512, 512,
-		-wg->half_width, -wg->half_height, 2 * wg->half_width, 2 * wg->half_height,
+		-wg->hw, -wg->hh, 2 * wg->hw, 2 * wg->hh,
 		0);
 }
 
@@ -40,7 +40,7 @@ static void mask(const struct wg_base* const wg)
 	al_draw_tinted_scaled_bitmap(resource_manager_icon(ICON_ID_MEEPLE),
 		al_map_rgb(255, 255, 255),
 		0, 0, 512, 512,
-		-wg->half_width, -wg->half_height, 2 * wg->half_width, 2 * wg->half_height,
+		-wg->hw, -wg->hh, 2 * wg->hw, 2 * wg->hh,
 		0);
 }
 
@@ -79,14 +79,37 @@ const struct wg_jumptable_piece meeple_jumptable =
 
 int meeple_new(lua_State* L)
 {
+	if (!lua_istable(L, -1))
+		lua_newtable(L);
+
+	// Set default hh.
+	lua_getfield(L, -1, "hh");
+
+	if (!lua_isnumber(L, -1))
+	{
+		lua_pushnumber(L, 40);
+		lua_setfield(L, -3, "hh");
+	}
+
+	lua_pop(L, 1);
+
+	// Set default hw.
+	lua_getfield(L, -1, "hw");
+
+	if (!lua_isnumber(L, -1))
+	{
+		lua_pushnumber(L, 40);
+		lua_setfield(L, -3, "hw");
+	}
+
+	lua_pop(L, 1);
+
 	struct meeple* meeple = (struct meeple*)wg_alloc_piece( sizeof(struct meeple), &meeple_jumptable);
 
 	if (!meeple)
 		return 0;
 
 	meeple->team = TEAM_NONE;
-	meeple->half_width = 40;
-	meeple->half_height = 40;
 
 	if (lua_istable(L, -2))
 	{

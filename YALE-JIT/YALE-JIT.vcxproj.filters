@@ -47,9 +47,6 @@
     <ClCompile Include="thread_pool.c">
       <Filter>core\thread_pool</Filter>
     </ClCompile>
-    <ClCompile Include="keyframe.c">
-      <Filter>core\widget\components</Filter>
-    </ClCompile>
     <ClCompile Include="widget.c">
       <Filter>core\widget</Filter>
     </ClCompile>
@@ -109,9 +106,6 @@
     <ClInclude Include="thread_pool.h">
       <Filter>core\thread_pool</Filter>
     </ClInclude>
-    <ClInclude Include="keyframe.h">
-      <Filter>core\widget\components</Filter>
-    </ClInclude>
     <ClInclude Include="widget.h">
       <Filter>core\widget</Filter>
     </ClInclude>
@@ -143,9 +137,6 @@
     </Filter>
     <Filter Include="core\resource_manager">
       <UniqueIdentifier>{35c00f64-f044-41df-b993-298af4ea933f}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="core\widget\components">
-      <UniqueIdentifier>{1d27cd65-7081-42cb-9685-92517034aca7}</UniqueIdentifier>
     </Filter>
     <Filter Include="core\widget\shaders">
       <UniqueIdentifier>{d97109b9-3f4b-4d77-bafb-ce0f2572e0cc}</UniqueIdentifier>

@@ -38,10 +38,10 @@ static void draw(const struct wg_base* const wg)
 
 	if (drop_down->hud_state == HUD_ACTIVE)
 	{
-		al_draw_filled_rounded_rectangle(-wg->half_width+2, -wg->half_height, wg->half_width-2, wg->half_height + drop_down->option_cnt * 50,
+		al_draw_filled_rounded_rectangle(-wg->hw+2, -wg->hh, wg->hw-2, wg->hh + drop_down->option_cnt * 50,
 			drop_down->pallet->edge_radius, drop_down->pallet->edge_radius, pallet->recess);
 
-		al_draw_rounded_rectangle(-wg->half_width+2, -wg->half_height, wg->half_width-2, wg->half_height + drop_down->option_cnt * 50,
+		al_draw_rounded_rectangle(-wg->hw+2, -wg->hh, wg->hw-2, wg->hh + drop_down->option_cnt * 50,
 			drop_down->pallet->edge_radius, drop_down->pallet->edge_radius,
 			pallet->edge, pallet->edge_width);
 
@@ -55,16 +55,16 @@ static void draw(const struct wg_base* const wg)
 				0, -0.5 * al_get_font_line_height(pallet->font) + 50 + 50 * idx,
 				ALLEGRO_ALIGN_CENTRE, option(drop_down, idx));
 
-			al_draw_line(-wg->half_width+4, wg->half_height+50*idx, wg->half_width-4, wg->half_height + 50 * idx,
+			al_draw_line(-wg->hw+4, wg->hh+50*idx, wg->hw-4, wg->hh + 50 * idx,
 				pallet->edge, pallet->edge_width);
 		}
 	}
 
-	al_draw_filled_rounded_rectangle(-wg->half_width, -wg->half_height, wg->half_width, wg->half_height,
+	al_draw_filled_rounded_rectangle(-wg->hw, -wg->hh, wg->hw, wg->hh,
 		drop_down->pallet->edge_radius, drop_down->pallet->edge_radius,
 		drop_down->hud_state == HUD_IDLE ? pallet->main : pallet->highlight);
 
-	al_draw_rounded_rectangle(-wg->half_width, -wg->half_height, wg->half_width, wg->half_height,
+	al_draw_rounded_rectangle(-wg->hw, -wg->hh, wg->hw, wg->hh,
 		pallet->edge_radius, pallet->edge_radius,
 		pallet->edge, pallet->edge_width);
 
@@ -78,12 +78,12 @@ static void mask(const struct wg_base* const wg)
 {
 	const struct drop_down* const drop_down = (const struct drop_down* const)wg;
 
-	al_draw_filled_rounded_rectangle(-wg->half_width, -wg->half_height, wg->half_width, wg->half_height,
+	al_draw_filled_rounded_rectangle(-wg->hw, -wg->hh, wg->hw, wg->hh,
 		drop_down->pallet->edge_radius, drop_down->pallet->edge_radius,
 		al_map_rgb(255, 255, 255));
 
 	if(drop_down->hud_state == HUD_ACTIVE)
-		al_draw_filled_rounded_rectangle(-wg->half_width+2, -wg->half_height, wg->half_width-2, wg->half_height+ drop_down->option_cnt * 50,
+		al_draw_filled_rounded_rectangle(-wg->hw+2, -wg->hh, wg->hw-2, wg->hh+ drop_down->option_cnt * 50,
 			drop_down->pallet->edge_radius, drop_down->pallet->edge_radius,
 			al_map_rgb(255, 255, 255));
 
@@ -193,6 +193,9 @@ int drop_down_new(lua_State* L)
 	size_t options_len_max = 0;
 	char** options = NULL;
 
+	double text_width = 0;
+	double text_width_max = 0;
+
 	options_cnt = lua_objlen(L, -1);
 	options = calloc(sizeof(char*),options_cnt);
 
@@ -205,39 +208,54 @@ int drop_down_new(lua_State* L)
 		if (options_len_max < options_len)
 			options_len_max = options_len;
 
+		text_width = al_get_text_width(primary_pallet.font, options[idx]);
+
+		if (text_width > text_width_max)
+			text_width_max = text_width;
+
 		lua_pop(L, 1);
 	}
 
 	lua_pop(L, 1);
 
-	const size_t size = sizeof(struct drop_down) + sizeof(char) * (options_len_max + 1)*options_cnt;
+	// Set default hh.
+	lua_getfield(L, -1, "hh");
 
+	if (!lua_isnumber(L, -1))
+	{
+		lua_pushnumber(L, 25);
+		lua_setfield(L, -3, "hh");
+	}
+
+	lua_pop(L, 1);
+
+	// Set default hw.
+	lua_getfield(L, -1, "hw");
+
+	if (!lua_isnumber(L, -1))
+	{
+		lua_pushnumber(L, 8 + 0.5 * text_width_max);
+		lua_setfield(L, -3, "hw");
+	}
+
+	lua_pop(L, 1);
+
+	const size_t size = sizeof(struct drop_down) + sizeof(char) * (options_len_max + 1)*options_cnt;
 	struct drop_down* drop_down = (struct drop_down*) wg_alloc_hud( size, &drop_down_jumptable);
 
 	drop_down->option_cnt = options_cnt;
 	drop_down->option_len = options_len_max;
 
-	double text_width = 0;
-	double text_width_max = 0;
 
 	for (size_t idx = 0; idx < options_cnt; idx++)
 	{
 		char* dest = option(drop_down, idx);
 		strcpy_s(dest, options_len_max + 1, options[idx]);
-		text_width = al_get_text_width(drop_down->pallet->font, options[idx]);
 
-		if (text_width > text_width_max)
-			text_width_max = text_width;
 	}
 	free(options);
 
 	drop_down->option = 0;
-
-	const double min_half_width = 8 + 0.5 * text_width_max;
-	const double min_half_height = 25;
-
-	drop_down->half_width = min_half_width > drop_down->half_width ? min_half_width : drop_down->half_width;
-	drop_down->half_height = min_half_height > drop_down->half_height ? min_half_height : drop_down->half_height;
 
 	return 1;
 }

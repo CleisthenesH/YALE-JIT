@@ -85,12 +85,6 @@ struct wg_header
         };
 		struct wg_internal* parent;
     };
-
-    // Bézier
-    struct keyframe ctrl1;
-    struct keyframe ctrl2;
-    struct keyframe dest;
-    double t;
 };
 
 struct wg_internal
@@ -138,9 +132,9 @@ static inline struct wg_internal* wg_internal(struct wg_base* wg)
     return (struct wg_internal*)((char*)wg - sizeof(struct wg_header) - sizeof(struct wg_jumptable_base*));
 }
 
-static struct keyframe* wg_keyframe(struct wg_internal* wg)
+static struct geometry* wg_geometry(struct wg_internal* wg)
 {
-    return (struct keyframe*)wg_public(wg);
+    return (struct geometry*)wg_public(wg);
 }
 
 /*********************************************/
@@ -196,6 +190,137 @@ static void wg_remove(struct wg_internal* const leaf)
 }
 
 /*********************************************/
+/*                 Geometry                  */
+/*********************************************/
+
+void geometry_default(struct geometry* const geometry)
+{
+    *geometry = (struct geometry)
+    {
+        .sx = 1,
+        .sy = 1,
+        .hh = 50,
+        .hw = 50,
+    };
+}
+
+void geometry_copy(struct geometry* const dest, const struct geometry* const src)
+{
+    memcpy_s(dest, sizeof(struct geometry), src, sizeof(struct geometry));
+}
+
+void geometry_blend(struct geometry* const dest, const struct geometry* const a, const struct geometry* const b, double blend)
+{
+    dest->x = a->x * blend + b->x * (1 - blend);
+    dest->y = a->y * blend + b->y * (1 - blend);
+    dest->sx = a->sx * blend + b->sx * (1 - blend);
+    dest->sy = a->sy * blend + b->sy * (1 - blend);
+    dest->a = a->a * blend + b->a * (1 - blend);
+    dest->dx = a->dx * blend + b->dx * (1 - blend);
+    dest->dy = a->dy * blend + b->dy * (1 - blend);
+    dest->hh = a->hh * blend + b->hh * (1 - blend);
+    dest->hw = a->hw * blend + b->hw * (1 - blend);
+}
+
+// Read a transform from the top of the stack to a pointer
+void lua_getgeometry(int idx, struct geometry* const geometry)
+{
+    lua_getfield(lua_state, idx, "x");
+    if (lua_type(lua_state, -1) == LUA_TNUMBER)
+        geometry->x = lua_tonumber(lua_state, -1);
+
+    lua_getfield(lua_state, idx - 1, "y");
+    if (lua_type(lua_state, -1) == LUA_TNUMBER)
+        geometry->y = lua_tonumber(lua_state, -1);
+
+    lua_getfield(lua_state, idx - 2, "sx");
+    if (lua_type(lua_state, -1) == LUA_TNUMBER)
+        geometry->sx = lua_tonumber(lua_state, -1);
+
+    lua_getfield(lua_state, idx - 3, "sy");
+    if (lua_type(lua_state, -1) == LUA_TNUMBER)
+        geometry->sy = lua_tonumber(lua_state, -1);
+
+    lua_getfield(lua_state, idx - 4, "a");
+    if (lua_type(lua_state, -1) == LUA_TNUMBER)
+        geometry->a = lua_tonumber(lua_state, -1);
+
+    lua_getfield(lua_state, idx - 5, "c");
+    if (lua_type(lua_state, -1) == LUA_TNUMBER)
+        geometry->c = lua_tonumber(lua_state, -1);
+
+    lua_getfield(lua_state, idx - 6, "dx");
+    if (lua_type(lua_state, -1) == LUA_TNUMBER)
+        geometry->dx = lua_tonumber(lua_state, -1);
+
+    lua_getfield(lua_state, idx - 7, "dy");
+    if (lua_type(lua_state, -1) == LUA_TNUMBER)
+        geometry->dy = lua_tonumber(lua_state, -1);
+
+    lua_getfield(lua_state, idx - 8, "hh");
+    if (lua_type(lua_state, -1) == LUA_TNUMBER)
+        geometry->hh = lua_tonumber(lua_state, -1);
+
+    lua_getfield(lua_state, idx - 9, "hw");
+    if (lua_type(lua_state, -1) == LUA_TNUMBER)
+        geometry->hw = lua_tonumber(lua_state, -1);
+
+    lua_pop(lua_state, 10);
+}
+
+// Set the field of a table at idx to the keyframe memebers.
+void lua_setgeometry(int idx, const struct geometry* const geometry)
+{
+    lua_pushnumber(lua_state, geometry->x);
+    lua_setfield(lua_state, idx - 1, "x");
+    lua_pushnumber(lua_state, geometry->y);
+    lua_setfield(lua_state, idx - 1, "y");
+    lua_pushnumber(lua_state, geometry->sx);
+    lua_setfield(lua_state, idx - 1, "sx");
+    lua_pushnumber(lua_state, geometry->sy);
+    lua_setfield(lua_state, idx - 1, "sy");
+    lua_pushnumber(lua_state, geometry->a);
+    lua_setfield(lua_state, idx - 1, "a");
+    lua_pushnumber(lua_state, geometry->c);
+    lua_setfield(lua_state, idx - 1, "c");
+    lua_pushnumber(lua_state, geometry->dx);
+    lua_setfield(lua_state, idx - 1, "dx");
+    lua_pushnumber(lua_state, geometry->dy);
+    lua_setfield(lua_state, idx - 1, "dy");
+    lua_pushnumber(lua_state, geometry->hh);
+    lua_setfield(lua_state, idx - 1, "hh");
+    lua_pushnumber(lua_state, geometry->hw);
+    lua_setfield(lua_state, idx - 1, "hw");
+}
+
+// Removes keyframe keys from table at idx.
+void lua_cleangeometry(int idx)
+{
+    lua_pushnil(lua_state);
+    lua_setfield(lua_state, idx - 1, "t");
+    lua_pushnil(lua_state);
+    lua_setfield(lua_state, idx - 1, "x");
+    lua_pushnil(lua_state);
+    lua_setfield(lua_state, idx - 1, "y");
+    lua_pushnil(lua_state);
+    lua_setfield(lua_state, idx - 1, "sx");
+    lua_pushnil(lua_state);
+    lua_setfield(lua_state, idx - 1, "sy");
+    lua_pushnil(lua_state);
+    lua_setfield(lua_state, idx - 1, "a");
+    lua_pushnil(lua_state);
+    lua_setfield(lua_state, idx - 1, "c");
+    lua_pushnil(lua_state);
+    lua_setfield(lua_state, idx - 1, "dx");
+    lua_pushnil(lua_state);
+    lua_setfield(lua_state, idx - 1, "dy");
+    lua_pushnil(lua_state);
+    lua_setfield(lua_state, idx - 1, "hh");
+    lua_pushnil(lua_state);
+    lua_setfield(lua_state, idx - 1, "hw");
+}
+
+/*********************************************/
 /*                  Bézier                   */
 /*********************************************/
 
@@ -206,22 +331,12 @@ static void wg_remove(struct wg_internal* const leaf)
 // P2: wg->ctrl2
 // P3: wg->dest
 
-static void wg_bezier_set(struct wg_internal* wg, struct keyframe* keyframe)
+static void wg_bezier_set(struct wg_internal* wg, struct geometry* geometry)
 {
-    if (keyframe)
-    {
-        keyframe_copy(wg_keyframe(wg), keyframe);
-        keyframe_copy(&wg->ctrl1, keyframe);
-        keyframe_copy(&wg->ctrl2, keyframe);
-        keyframe_copy(&wg->dest, keyframe);
-    }
-    else
-    {
-        keyframe_default(wg_keyframe(wg));
-        keyframe_default(&wg->ctrl1);
-        keyframe_default(&wg->ctrl2);
-        keyframe_default(&wg->dest);
-    }
+	geometry_copy(wg_geometry(wg), geometry);
+	geometry_copy(&wg->ctrl1, geometry);
+	geometry_copy(&wg->ctrl2, geometry);
+	geometry_copy(&wg->dest, geometry);
 
     wg->t = current_timestamp;
 }
@@ -242,30 +357,38 @@ static void wg_bezier_update(struct wg_internal* wg)
     // Warning: Standard numeric stability concerns.
     double const blend = delta_timestamp / (wg->t - current_timestamp);
 
-    struct keyframe* const bezier[4] = {
-        wg_keyframe(wg),
+    struct geometry* const bezier[4] = {
+        wg_geometry(wg),
         &wg->ctrl1,
         &wg->ctrl2,
         &wg->dest
     };
 
-    keyframe_blend(bezier[0], bezier[1], bezier[0], blend);
-    keyframe_blend(bezier[1], bezier[2], bezier[1], blend);
-    keyframe_blend(bezier[2], bezier[3], bezier[2], blend);
+    geometry_blend(bezier[0], bezier[1], bezier[0], blend);
+    geometry_blend(bezier[1], bezier[2], bezier[1], blend);
+    geometry_blend(bezier[2], bezier[3], bezier[2], blend);
 
-    keyframe_blend(bezier[0], bezier[1], bezier[0], blend);
-    keyframe_blend(bezier[1], bezier[2], bezier[1], blend);
+    geometry_blend(bezier[0], bezier[1], bezier[0], blend);
+    geometry_blend(bezier[1], bezier[2], bezier[1], blend);
     
-    keyframe_blend(bezier[0], bezier[1], bezier[0], blend);
+    geometry_blend(bezier[0], bezier[1], bezier[0], blend);
 }
 
 static void wg_bezier_interupt(struct wg_internal* wg)
 {
-    keyframe_copy(&wg->ctrl1, wg_keyframe(wg));
-    keyframe_copy(&wg->ctrl2, wg_keyframe(wg));
-    keyframe_copy(&wg->dest, wg_keyframe(wg));
+    geometry_copy(&wg->ctrl1, wg_geometry(wg));
+    geometry_copy(&wg->ctrl2, wg_geometry(wg));
+    geometry_copy(&wg->dest, wg_geometry(wg));
 
     wg->t = current_timestamp;
+}
+
+static void wg_bezier_default(struct wg_internal* wg)
+{
+	geometry_default(wg_geometry(wg));
+	geometry_default(&wg->ctrl1);
+	geometry_default(&wg->ctrl2);
+	geometry_default(&wg->dest);
 }
 
 /*********************************************/
@@ -474,15 +597,22 @@ static struct wg_internal* current_drop;
 
 static struct wg_internal camera;
 
-static void camera_compose_transform(ALLEGRO_TRANSFORM* const trans, const double blend)
+static void camera_build_transform(const struct geometry* const geometry, ALLEGRO_TRANSFORM* const trans)
 {
+    al_build_transform(trans,
+        geometry->x, geometry->y,
+        geometry->sx, geometry->sy,
+        geometry->a);
+
+    al_translate_transform(trans, geometry->dx, geometry->dy);
+
     ALLEGRO_TRANSFORM buffer;
 
-    const double blend_x = camera.x * blend;
-    const double blend_y = camera.y * blend;
-    const double blend_sx = camera.sx * blend + (1 - blend);
-    const double blend_sy = camera.sy * blend + (1 - blend);
-    const double blend_a = camera.a * blend;
+    const double blend_x = camera.x * geometry->c;
+    const double blend_y = camera.y * geometry->c;
+    const double blend_sx = camera.sx * geometry->c + (1 - geometry->c);
+    const double blend_sy = camera.sy * geometry->c + (1 - geometry->c);
+    const double blend_a = camera.a * geometry->c;
 
     al_build_transform(&buffer,
         blend_x, blend_y,
@@ -490,6 +620,50 @@ static void camera_compose_transform(ALLEGRO_TRANSFORM* const trans, const doubl
         blend_a);
 
     al_compose_transform(trans, &buffer);
+}
+
+// Push camera
+static int camera_push(lua_State* L)
+{
+    luaL_checktype(L, -1, LUA_TTABLE);
+
+    struct geometry geometry;
+    geometry_copy(&geometry, &camera.dest);
+    lua_getgeometry(-1, &geometry);
+    geometry_copy(&camera.dest, & geometry);
+
+    lua_getfield(L, -1, "t");
+
+    if (lua_type(lua_state, -1) == LUA_TNUMBER)
+        camera.t = lua_tonumber(lua_state, -1);
+    else
+        camera.t = current_timestamp;
+
+    return 0;
+}
+
+// Set camera
+static int camera_set(lua_State* L)
+{
+    luaL_checktype(L, -1, LUA_TTABLE);
+
+    struct geometry geometry;
+    geometry_copy(&geometry, &camera.dest);
+    lua_getgeometry(-1, &geometry);
+    wg_bezier_set(&camera, &geometry);
+
+    return 0;
+}
+
+static void camera_init()
+{
+    geometry_default(wg_geometry(&camera));
+    wg_bezier_default(&camera);
+    lua_pushcfunction(lua_state, camera_push);
+    lua_setglobal(lua_state, "camera_push");
+
+    lua_pushcfunction(lua_state, camera_set);
+    lua_setglobal(lua_state, "camera_set");
 }
 
 /*********************************************/
@@ -590,8 +764,7 @@ static void mask_widget(struct wg_internal* wg, size_t* picker_index)
 
     al_set_shader_float_vector("picker_color", 3, color_buffer, 1);
     ALLEGRO_TRANSFORM buffer;
-    keyframe_build_transform((struct keyframe* const)wg_keyframe(wg), (ALLEGRO_TRANSFORM* const)&buffer);
-    camera_compose_transform(&buffer, wg->c);
+    camera_build_transform((struct geometry* const)wg_geometry(wg), (ALLEGRO_TRANSFORM* const)&buffer);
     al_use_transform(&buffer);
     wg->jumptable->mask(wg_public(wg));
 }
@@ -999,11 +1172,17 @@ void call_drag_end_drop(struct wg_internal* wg, struct wg_internal* wg2)
 
     call_valid_move(zone, piece, true);
 
-    wg_remove(wg2);
-    wg_append((struct wg_internal*)zone, wg2);
+    wg_remove(piece);
+    wg_append((struct wg_internal*)zone, (struct wg_internal*) piece);
 
-    keyframe_copy(&current_hover->dest, wg_keyframe(wg));
-    current_hover->t = current_timestamp + 0.1;
+    struct geometry geometry;
+    geometry_copy(&geometry, &zone->dest);
+
+    geometry.hh = piece->dest.hh;
+    geometry.hw = piece->dest.hw;
+
+    geometry_copy(&piece->dest, &geometry);
+    piece->t = current_timestamp + 0.1;
 
     if (wg->jumptable->drag_end_drop)
         wg->jumptable->drag_end_drop(wg_public(wg), wg_public(wg2));
@@ -1032,7 +1211,7 @@ void call_click_off(struct wg_internal* wg)
 /*********************************************/
 
 // Drag and Snap Variables
-static struct keyframe drag_release;
+static struct geometry drag_release;
 static double drag_offset_x, drag_offset_y; // coordinates system match current_hover (screen or world)
 static double snap_offset_x, snap_offset_y; // coordinates system match snap (screen or world)
 static const double snap_speed = 1000; // px per sec
@@ -1074,15 +1253,14 @@ static void draw_widget(const struct wg_internal* const wg)
     //al_set_shader_float("variation", internal->variation);
 
     // You don't actually have to send this everytime, should track a count of materials that need it.
-    if (wg->half_width != 0 && wg->half_height != 0)
+    if (wg->hw != 0 && wg->hh != 0)
     {
-        const float dimensions[2] = { 1.0 / wg->half_width, 1.0 / wg->half_height };
+        const float dimensions[2] = { 1.0 / wg->hw, 1.0 / wg->hh };
         al_set_shader_float_vector("object_scale", 2, dimensions, 1);
     }
 
     ALLEGRO_TRANSFORM buffer;
-    keyframe_build_transform((struct keyframe* const) wg_keyframe(wg), (ALLEGRO_TRANSFORM* const ) & buffer);
-    camera_compose_transform(&buffer, wg->c);
+    camera_build_transform((struct geometry* const) wg_geometry(wg), (ALLEGRO_TRANSFORM* const ) & buffer);
     al_use_transform(&buffer);
 
     material_apply(NULL);
@@ -1102,11 +1280,11 @@ static void draw_widget(const struct wg_internal* const wg)
 // Move the current_hover towards the drag location
 static inline void towards_drag()
 {
-    struct keyframe keyframe = drag_release;
-    keyframe.dx = mouse_x - drag_offset_x;
-    keyframe.dy = mouse_y - drag_offset_y;
+    struct geometry geometry = drag_release;
+    geometry.dx = mouse_x - drag_offset_x;
+    geometry.dy = mouse_y - drag_offset_y;
 
-    keyframe_copy(&current_hover->dest, &drag_release);
+    geometry_copy(&current_hover->dest, &drag_release);
     current_hover->t = current_timestamp + 0.1;
 }
 
@@ -1157,14 +1335,16 @@ static inline void update_drag_pointers()
 
 			if (new_pointer->snappable)
 			{
-                struct keyframe snap_target;    
+                struct geometry snap_target;    
 
-                keyframe_copy(&snap_target, &new_pointer->dest);
+                geometry_copy(&snap_target, &new_pointer->dest);
 
 				snap_target.dx += snap_offset_x;
 				snap_target.dy += snap_offset_y;
+                snap_target.hh = current_hover->dest.hh;
+                snap_target.hw = current_hover->dest.hw;
 
-                keyframe_copy(&current_hover->dest, &snap_target);
+                geometry_copy(&current_hover->dest, &snap_target);
                 current_hover->t = current_timestamp + 0.1;
 
 				widget_engine_state = ENGINE_STATE_TO_SNAP;
@@ -1202,7 +1382,7 @@ void widget_screen_to_local(const struct wg_base* const wg, double* x, double* y
     float _x = *x;
     float _y = *y;
 
-    keyframe_build_transform(wg_keyframe(wg_internal(wg)), &transform);
+    camera_build_transform(wg_geometry(wg_internal(wg)), &transform);
 
     // WARNING: the inbuilt invert only works for 2D transforms
     al_invert_transform(&transform);
@@ -1276,7 +1456,7 @@ static void process_mouse_up(unsigned int button, bool allow_drag_end_drop)
     case ENGINE_STATE_SNAP:
     case ENGINE_STATE_TO_SNAP:
     case ENGINE_STATE_TO_DRAG:
-        keyframe_copy(&current_hover->dest, &drag_release);
+        geometry_copy(&current_hover->dest, &drag_release);
         current_hover->t = current_timestamp + 0.1;
 
         if (current_drop && allow_drag_end_drop)
@@ -1386,7 +1566,7 @@ void widget_engine_update()
     {
     case ENGINE_STATE_DRAG:
     {
-        struct keyframe buffer = drag_release;
+        struct geometry buffer = drag_release;
 
         const double tx = (mouse_x - drag_offset_x)/camera.sx;
         const double ty = (mouse_y - drag_offset_y)/camera.sy;
@@ -1500,7 +1680,7 @@ void widget_engine_event_handler()
             drag_offset_x = mouse_x - current_hover->dx;
             drag_offset_y = mouse_y - current_hover->dy;
 
-            keyframe_copy(&drag_release,&current_hover->dest);
+            geometry_copy(&drag_release,&current_hover->dest);
         }
        
         break;
@@ -1537,7 +1717,7 @@ void widget_engine_event_handler()
 }
 
 /*********************************************/
-/*               LUA interface               */
+/*          General LUA Functions            */
 /*********************************************/
 
 // Set the widget keyframe (singular) clears all current keyframes 
@@ -1545,12 +1725,13 @@ static int set_keyframe(lua_State* L)
 {
     struct wg_internal* const wg = (struct wg_internal*) luaL_checkudata(L, -2, "widget_mt");
 
-    struct keyframe keyframe;
+    struct geometry geometry;
 
-    keyframe_default(&keyframe);
-    lua_getkeyframe(-1, &keyframe);
+	geometry_default(&geometry);
 
-    wg_bezier_set(wg, &keyframe);
+    lua_getgeometry(-1, &geometry);
+
+    wg_bezier_set(wg, &geometry);
 
     return 0;
 }
@@ -1561,12 +1742,12 @@ static int push_keyframe(lua_State* L)
     struct wg_internal* const wg = (struct wg_internal*)luaL_checkudata(L, -2, "widget_mt");
     luaL_checktype(L, -1, LUA_TTABLE);
 
-    struct keyframe keyframe;
-    keyframe_default(&keyframe);
+    struct geometry geometry;
+    geometry_default(&geometry);
 
-    lua_getkeyframe(-1, &keyframe);
+    lua_getgeometry(-1, &geometry);
 
-    keyframe_copy(&wg->dest, &keyframe);
+    geometry_copy(&wg->dest, &geometry);
     lua_getfield(L, -1, "t");
 
     if (lua_type(lua_state, -1) == LUA_TNUMBER)
@@ -1604,42 +1785,9 @@ static int push_class(lua_State* L)
     return 1;
 }
 
-// Push camera
-static int camera_push(lua_State* L)
-{
-    luaL_checktype(L, -1, LUA_TTABLE);
-
-    struct keyframe keyframe;
-    keyframe_default(&keyframe);
-
-    lua_getkeyframe(-1, &keyframe);
-
-    keyframe_copy(wg_keyframe(&camera), & keyframe);
-
-    lua_getfield(L, -1, "t");
-
-    if (lua_type(lua_state, -1) == LUA_TNUMBER)
-        camera.t = lua_tonumber(lua_state, -1);
-    else
-        camera.t = current_timestamp;
-
-    return 0;
-}
-
-// Set camera
-static int camera_set(lua_State* L)
-{
-    luaL_checktype(L, -1, LUA_TTABLE);
-
-    struct keyframe keyframe;
-
-    keyframe_default(&keyframe);
-    lua_getkeyframe(-1, &keyframe);
-
-    wg_bezier_set(&camera, &keyframe);
-
-    return 0;
-}
+/*********************************************/
+/*          Big Three LUA Callbacks          */
+/*********************************************/
 
 // General widget garbage collection
 static int wg_gc(lua_State* L)
@@ -1743,7 +1891,7 @@ static int wg_index(lua_State* L)
                     lua_pushcfunction(L, drop_down_new);
                     return 1;
                 }
-                else if (strcmp("counter", key) == 0)
+                else if (strcmp("tile_selector", key) == 0)
                 {
                     lua_pushcfunction(L, tile_selector_new);
                     return 1;
@@ -1860,17 +2008,7 @@ void widget_engine_init()
     offscreen_shader_init();
 
     style_init();
-
-    // Camera
-    keyframe_default(wg_keyframe(&camera));
-    wg_bezier_set(&camera,NULL);
-    lua_pushcfunction(lua_state, camera_push);
-    lua_setglobal(lua_state, "camera_push");
-
-    lua_pushcfunction(lua_state, camera_set);
-    lua_setglobal(lua_state, "camera_set");
-
-    //
+    camera_init();
     zone_and_piece_init();
 }
 
@@ -1935,29 +2073,12 @@ static struct wg_internal* wg_alloc(enum wg_type type, size_t size)
     wg_alloc_wire_in(widget);
 
     // Process keyframes and tweener
-    struct keyframe keyframe;
-    keyframe_default(&keyframe);
-    lua_getkeyframe(-2, &keyframe);
-    lua_cleankeyframe(-2);
-    wg_bezier_set(widget, &keyframe);
+    struct geometry geometry;
+	geometry_default(&geometry);
 
-    // Read and Set Width and Height
-    lua_getfield(lua_state, -2, "width");
-
-    if (lua_isnumber(lua_state, -1))
-        widget->half_width = 0.5 * luaL_checknumber(lua_state, -1);
-
-    lua_getfield(lua_state, -3, "height");
-
-    if (lua_isnumber(lua_state, -1))
-        widget->half_height = 0.5 * luaL_checknumber(lua_state, -1);
-
-    lua_pop(lua_state, 2);
-
-    lua_pushnil(lua_state);
-    lua_setfield(lua_state, -3, "height");
-    lua_pushnil(lua_state);
-    lua_setfield(lua_state, -3, "width");
+    lua_getgeometry(-2, &geometry);
+    lua_cleangeometry(-2);
+    wg_bezier_set(widget, &geometry);
 
     // Set fenv
     lua_pushvalue(lua_state, -2);
@@ -1989,7 +2110,13 @@ struct wg_piece* wg_alloc_piece(size_t size, struct wg_jumptable_piece* jumptabl
     wg->snappable = false;
     wg->jumptable = (struct wg_jumptable_piece*)jumptable;
 
-    wg_bezier_set(wg, wg_keyframe(wg->parent));
+    struct geometry geometry;
+    geometry_copy(&geometry, &wg->parent->dest);
+
+    geometry.hh = wg->dest.hh;
+    geometry.hw = wg->dest.hw;
+
+    wg_bezier_set(wg, &geometry);
 
     return (struct wg_piece*)wg_public((struct wg_internal*)wg);
 }

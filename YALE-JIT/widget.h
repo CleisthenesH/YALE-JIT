@@ -5,8 +5,26 @@
 
 #include <stdbool.h>
 #include <stdlib.h>
-#include "keyframe.h"
 #include <allegro5/allegro_font.h>
+
+/*********************************************/
+/*            Widget Class structs           */
+/*********************************************/
+
+// x-position, y-position, x-scale, y-scale, angle, camera, x-offset, y-offset, half-height, half-width
+struct geometry
+{
+	double x, y, sx, sy, a, c, dx, dy, hh, hw;
+};
+
+// Keyframe methods
+void geometry_default(struct geometry* const);
+void geometry_copy(struct geometry* const, const struct geometry* const);
+void geometry_blend(struct geometry* const, const struct geometry* const, const struct geometry* const, double);
+
+void lua_getgeometry(int, struct geometry* const);
+void lua_setgeometry(int, const struct geometry* const);
+void lua_cleangeometry(int);
 
 /*********************************************/
 /*            Widget Class structs           */
@@ -14,8 +32,14 @@
 
 struct wg_base
 {
-	struct keyframe;
-	double half_width, half_height;
+	// Current geometry
+	struct geometry;
+
+	// Bézier
+	struct geometry ctrl1;
+	struct geometry ctrl2;
+	struct geometry dest;
+	double t;
 
 	bool draggable;
 	bool snappable;
@@ -67,6 +91,7 @@ struct wg_jumptable_base
 	void (*mask)(const struct wg_base* const);
 
 	void (*event_handler)(struct wg_base* const);
+	void (*default_geometry)(struct wg_base* const,struct geometry*);
 
 	void (*hover_start)(struct wg_base* const);
 	void (*hover_end)(struct wg_base* const);

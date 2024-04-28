@@ -6,8 +6,9 @@
 
 --dofile("lua/HUD_test.lua")
 
-frame = hud:frame{x=200,y=200,width=100,height=100}
-button = frame:button{x=200,y=200,text="Test"}
+frame = hud:frame{x=200,y=200,hw=50,hh=50}
+
+button = frame:button{x=200,y=200, text="Test"}
 slider = frame:slider{x=500,y=200}
 text_entry = frame:text_entry{x=700,y=300}
 

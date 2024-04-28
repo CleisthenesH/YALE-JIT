@@ -36,7 +36,7 @@ static void draw(const struct wg_base* const wg)
 
 	al_draw_scaled_bitmap(resource_manager_tile(TILE_EMPTY),
 		0, 0, 300, 300,
-		-wg->half_width, -wg->half_height, 2 * wg->half_width, 2 * wg->half_height,
+		-wg->hw, -wg->hh, 2 * wg->hw, 2 * wg->hh,
 		0);
 
 	if (tile->id == TILE_EMPTY)
@@ -52,7 +52,7 @@ static void draw(const struct wg_base* const wg)
 	al_draw_tinted_scaled_bitmap(resource_manager_tile(tile->id),
 		tile_pallet[tile->team][state_to_pallet(wg)],
 		0, 0, 300, 300,
-		-wg->half_width, -wg->half_height, 2 * wg->half_width, 2 * wg->half_height,
+		-wg->hw, -wg->hh, 2 * wg->hw, 2 * wg->hh,
 		0);
 }
 
@@ -60,7 +60,7 @@ static void mask(const struct wg_base* const wg)
 {
 	al_draw_scaled_bitmap(resource_manager_tile(TILE_EMPTY),
 		0, 0, 300, 300,
-		-wg->half_width, -wg->half_height, 2 * wg->half_width, 2 * wg->half_height,
+		-wg->hw, -wg->hh, 2 * wg->hw, 2 * wg->hh,
 		0);
 }
 
@@ -154,6 +154,31 @@ const struct wg_jumptable_zone tile_jumptable =
 
 int tile_new(lua_State* L)
 {
+	if (!lua_istable(L, -1))
+		lua_newtable(L);
+
+	// Set default hh.
+	lua_getfield(L, -1, "hh");
+
+	if (!lua_isnumber(L, -1))
+	{
+		lua_pushnumber(L, 50);
+		lua_setfield(L, -3, "hh");
+	}
+
+	lua_pop(L, 1);
+
+	// Set default hw.
+	lua_getfield(L, -1, "hw");
+
+	if (!lua_isnumber(L, -1))
+	{
+		lua_pushnumber(L, 50);
+		lua_setfield(L, -3, "hw");
+	}
+
+	lua_pop(L, 1);
+
 	struct tile* tile = (struct tile*) wg_alloc_zone(sizeof(struct tile), &tile_jumptable);
 
 	if (!tile)
@@ -170,9 +195,6 @@ int tile_new(lua_State* L)
 		lua_getfield(L, -2, "tile");
 		tile->id = lua_toid(L, -1);
 	}
-
-	tile->half_width = 50;
-	tile->half_height = 50;
 
 	return 1;
 }

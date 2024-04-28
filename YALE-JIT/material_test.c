@@ -61,9 +61,9 @@ static void draw(const struct wg_base* const wg)
 	material_apply(material_test->material);
 
 	if (material_test->bitmap)
-		al_draw_bitmap(material_test->bitmap, -wg->half_width, -wg->half_height, 0);
+		al_draw_bitmap(material_test->bitmap, -wg->hw, -wg->hh, 0);
 	else
-		al_draw_filled_rectangle(-wg->half_width, -wg->half_height, wg->half_width, wg->half_height,
+		al_draw_filled_rectangle(-wg->hw, -wg->hh, wg->hw, wg->hh,
 			al_map_rgb(0, 255, 0));
 
 	material_apply(NULL);
@@ -71,7 +71,7 @@ static void draw(const struct wg_base* const wg)
 
 static void mask(const struct wg_base* const wg)
 {
-	al_draw_filled_rectangle(-wg->half_width, -wg->half_height, wg->half_width, wg->half_height,
+	al_draw_filled_rectangle(-wg->hw, -wg->hh, wg->hw, wg->hh,
 		al_map_rgb(0, 255, 0));
 }
 
@@ -109,8 +109,8 @@ static int newindex(lua_State* L)
 				al_destroy_bitmap(material_test);
 
 			material_test->bitmap = al_load_bitmap(lua_tostring(L, -1));
-			material_test->half_height = 0.5 * al_get_bitmap_height(material_test->bitmap);
-			material_test->half_width = 0.5 * al_get_bitmap_width(material_test->bitmap);
+			material_test->hh = 0.5 * al_get_bitmap_height(material_test->bitmap);
+			material_test->hw = 0.5 * al_get_bitmap_width(material_test->bitmap);
 
 			return 0;
 		}
@@ -147,12 +147,6 @@ int material_test_new(lua_State* L)
 	}
 
 	material_test->bitmap = NULL;
-
-	const double min_half_width = 200;
-	const double min_half_height = 200;
-
-	material_test->half_width = min_half_width > material_test->half_width ? min_half_width : material_test->half_width;
-	material_test->half_height = min_half_height > material_test->half_height ? min_half_height : material_test->half_height;
 
 	material_test->material = material_new(material_test->effect_id, material_test->selection_id);
 

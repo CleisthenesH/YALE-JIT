@@ -54,18 +54,18 @@ static void draw(const struct wg_base* const wg)
 {
 	const struct slider* const slider = (const struct slider* const)wg;
 
-	al_draw_filled_rounded_rectangle(-slider->half_width, -slider->half_height, slider->half_width, slider->half_height,
+	al_draw_filled_rounded_rectangle(-slider->hw, -slider->hh, slider->hw, slider->hh,
 		primary_pallet.edge_radius, primary_pallet.edge_radius,
 		primary_pallet.main);
 
-	al_draw_line(-slider->half_width + slider_padding, 0, slider->half_width - slider_padding, 0,
+	al_draw_line(-slider->hw + slider_padding, 0, slider->hw - slider_padding, 0,
 		primary_pallet.edge, primary_pallet.edge_width);
 
-	const double center = -slider->half_width + slider_padding + slider->progress * 2 * (slider->half_width - slider_padding);
+	const double center = -slider->hw + slider_padding + slider->progress * 2 * (slider->hw - slider_padding);
 	al_draw_filled_rectangle(center - 4, -4, center + 4, 4,
 		holder_color(slider));
 
-	al_draw_rounded_rectangle(-slider->half_width, -slider->half_height, slider->half_width, slider->half_height,
+	al_draw_rounded_rectangle(-slider->hw, -slider->hh, slider->hw, slider->hh,
 		primary_pallet.edge_radius, primary_pallet.edge_radius,
 		primary_pallet.edge, primary_pallet.edge_width);
 }
@@ -74,7 +74,7 @@ static void mask(const struct wg_base* const wg)
 {
 	const struct slider* const slider = (const struct slider* const)wg;
 
-	al_draw_filled_rounded_rectangle(-slider->half_width, -slider->half_height, slider->half_width, slider->half_height,
+	al_draw_filled_rounded_rectangle(-slider->hw, -slider->hh, slider->hw, slider->hh,
 		primary_pallet.edge_radius, primary_pallet.edge_radius,
 		al_map_rgb(255,255,255));
 }
@@ -87,7 +87,7 @@ static void left_held(struct wg_base* const wg)
 	double y = mouse_y;
 	widget_screen_to_local(wg, &x, &y);
 
-	slider->progress = x / (2 * (slider->half_width - slider_padding)) + 0.5;
+	slider->progress = x / (2 * (slider->hw - slider_padding)) + 0.5;
 
 	clamp(slider);
 }
@@ -197,29 +197,51 @@ const struct wg_jumptable_hud slider_jumptable =
 
 int slider_new(lua_State* L)
 {
+	if (!lua_istable(L, -1))
+		lua_newtable(L);
+
+	// Set default hh.
+	lua_getfield(L, -1, "hh");
+
+	if (!lua_isnumber(L, -1))
+	{
+		lua_pushnumber(L, 16);
+		lua_setfield(L, -3, "hh");
+	}
+
+	lua_pop(L, 1);
+
+	// Set default hw.
+	lua_getfield(L, -1, "hw");
+
+	if (!lua_isnumber(L, -1))
+	{
+		lua_pushnumber(L, 175);
+		lua_setfield(L, -3, "hw");
+	}
+
+	lua_pop(L, 1);
+
 	double start = 0;
 	double end = 100;
 	double progress = 0.2;
 
-	if (lua_istable(L, -1))
-	{
-		lua_getfield(L, -1, "start");
+	lua_getfield(L, -1, "start");
 
-		if (lua_isnumber(L, -1))
-			start = lua_tonumber(L, -1);
+	if (lua_isnumber(L, -1))
+		start = lua_tonumber(L, -1);
 
-		lua_getfield(L, -2, "end");
+	lua_getfield(L, -2, "end");
 
-		if (lua_isnumber(L, -1))
-			end = lua_tonumber(L, -1);
+	if (lua_isnumber(L, -1))
+	end = lua_tonumber(L, -1);
 
-		lua_getfield(L, -3, "progress");
+	lua_getfield(L, -3, "progress");
 
-		if (lua_isnumber(L, -1))
-			progress = lua_tonumber(L, -1);		
-		
-		lua_pop(L, 3);
-	}
+	if (lua_isnumber(L, -1))
+		progress = lua_tonumber(L, -1);		
+	
+	lua_pop(L, 3);
 
 	struct slider* slider = (struct slider*)wg_alloc_hud(sizeof(struct slider), &slider_jumptable);
 
@@ -228,12 +250,6 @@ int slider_new(lua_State* L)
 	slider->end = end;
 
 	clamp(slider);
-
-	const double min_half_width = 175;
-	const double min_half_height = 16;
-
-	slider->half_width = min_half_width > slider->half_width ? min_half_width : slider->half_width;
-	slider->half_height = min_half_height > slider->half_height ? min_half_height : slider->half_height;
 
 	return 1;
 }
