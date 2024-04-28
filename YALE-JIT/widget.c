@@ -341,6 +341,21 @@ static void wg_bezier_set(struct wg_internal* wg, struct geometry* geometry)
     wg->t = current_timestamp;
 }
 
+static void wg_bezier_parameter(struct wg_internal* wg, size_t offset, double values[4])
+{
+    double* bezier[4] = {
+        ((double*) wg_geometry(wg))+ offset,
+        ((double*) &wg->ctrl1) + offset,
+        ((double*) &wg->ctrl2) + offset,
+        ((double*) &wg->dest) + offset
+    };
+
+    *bezier[0] = values[0];
+    *bezier[1] = values[1];
+    *bezier[2] = values[2];
+    *bezier[3] = values[3]; 
+}
+
 static void wg_bezier_update(struct wg_internal* wg)
 {
     const double dt = wg->t - current_timestamp;
@@ -389,6 +404,82 @@ static void wg_bezier_default(struct wg_internal* wg)
 	geometry_default(&wg->ctrl1);
 	geometry_default(&wg->ctrl2);
 	geometry_default(&wg->dest);
+}
+
+/*********************************************/
+/*                  Bézier                   */
+/*********************************************/
+
+static int lua_setbezierparameter(lua_State* L, int idx, struct wg_internal* wg, size_t offset)
+{
+    if (lua_isnumber(L, idx))
+    {
+        double value = lua_tonumber(L, idx);
+        wg_bezier_parameter(wg, offset, (double[4]){ value,value,value,value});
+
+        return 0;
+    }
+
+    if (!lua_istable(L, idx))
+        return 0;
+
+    if (lua_objlen(L, idx) == 1)
+    {
+        lua_pushnumber(L, 1);
+        lua_gettable(L, idx - 1);
+        double value = lua_tonumber(L, -1);
+        lua_pop(L, 1);
+
+        wg_bezier_parameter(wg, offset, (double[4]) { value, value, value, value });
+
+        return 0;
+    }
+
+    if (lua_objlen(L, idx) == 2)
+    {
+        lua_pushnumber(L, 1);
+        lua_gettable(L, idx - 1);
+        double start = lua_tonumber(L, - 1);
+
+        lua_pushnumber(L, 2);
+        lua_gettable(L, idx - 2);
+        double end = lua_tonumber(L, - 1);
+
+        lua_pop(L, 2);
+
+        wg_bezier_parameter(wg, offset, (double[4]) { start, end, end, end });
+
+        return 0;
+    }
+
+    if (lua_objlen(L, idx) == 4)
+    {
+        double values[4];
+
+        lua_pushnumber(L, 1);
+        lua_gettable(L, idx - 1);
+        values[0] = lua_tonumber(L, - 1);
+
+        lua_pushnumber(L, 2);
+        lua_gettable(L, idx - 2);
+        values[1] = lua_tonumber(L, - 1);
+
+        lua_pushnumber(L, 3);
+        lua_gettable(L, idx - 3);
+        values[2] = lua_tonumber(L, - 1);
+
+        lua_pushnumber(L, 4);
+        lua_gettable(L, idx - 4);
+        values[3] = lua_tonumber(L, - 1);
+
+        lua_pop(L, 4);
+
+        wg_bezier_parameter(wg, offset, values);
+
+        return 0;
+    }
+    
+    return -1;
 }
 
 /*********************************************/
@@ -1789,6 +1880,8 @@ static int push_class(lua_State* L)
 /*          Big Three LUA Callbacks          */
 /*********************************************/
 
+// Will be turned into a bsearch/hash once the methods are finalized
+
 // General widget garbage collection
 static int wg_gc(lua_State* L)
 {
@@ -1840,7 +1933,6 @@ static int wg_index(lua_State* L)
                 return 1;
             }
 
-        // TODO: Improve
         if (strcmp("x", key) == 0)
         {
             lua_pushnumber(L, wg->x);
@@ -1849,6 +1941,46 @@ static int wg_index(lua_State* L)
         else if (strcmp("y", key) == 0)
         {
             lua_pushnumber(L, wg->y);
+            return 1;
+        }
+        else if (strcmp("sx", key) == 0)
+        {
+            lua_pushnumber(L, wg->sx);
+            return 1;
+        }
+        else if (strcmp("sy", key) == 0)
+        {
+            lua_pushnumber(L, wg->sy);
+            return 1;
+        }
+        else if (strcmp("a", key) == 0)
+        {
+            lua_pushnumber(L, wg->a);
+            return 1;
+        }
+        else if (strcmp("c", key) == 0)
+        {
+            lua_pushnumber(L, wg->c);
+            return 1;
+        }
+        else if (strcmp("dx", key) == 0)
+        {
+            lua_pushnumber(L, wg->dx);
+            return 1;
+        }
+        else if (strcmp("dy", key) == 0)
+        {
+            lua_pushnumber(L, wg->dy);
+            return 1;
+        }
+        else if (strcmp("hh", key) == 0)
+        {
+            lua_pushnumber(L, wg->hh);
+            return 1;
+        }
+        else if (strcmp("hw", key) == 0)
+        {
+            lua_pushnumber(L, wg->hw);
             return 1;
         }
 
@@ -1924,6 +2056,40 @@ static int wg_newindex(lua_State* L)
 {
     struct wg_internal* const wg = (struct wg_internal*)luaL_checkudata(L, -3, "widget_mt");
 
+    if (lua_type(L, -2) == LUA_TSTRING)
+    {
+        const char* key = lua_tostring(L, -2);
+
+        if (strcmp("t", key) == 0)
+        {
+            if (!lua_isnumber(L, -1))
+                return -1;
+
+            wg->t = lua_tonumber(L, -1);
+            return 0;
+        }
+        else if (strcmp("x", key) == 0)
+            return lua_setbezierparameter(L, -1, wg, 0);
+        else if (strcmp("y", key) == 0)
+            return lua_setbezierparameter(L, -1, wg, 1);
+        else if (strcmp("sx", key) == 0)
+            return lua_setbezierparameter(L, -1, wg, 2);
+        else if (strcmp("sy", key) == 0)
+            return lua_setbezierparameter(L, -1, wg, 3);
+        else if (strcmp("a", key) == 0)
+            return lua_setbezierparameter(L, -1, wg, 4);
+        else if (strcmp("c", key) == 0)
+            return lua_setbezierparameter(L, -1, wg, 5);
+        else if (strcmp("dx", key) == 0)
+            return lua_setbezierparameter(L, -1, wg, 6);
+        else if (strcmp("dy", key) == 0)
+            return lua_setbezierparameter(L, -1, wg, 7);
+        else if (strcmp("hh", key) == 0)
+            return lua_setbezierparameter(L, -1, wg, 0);
+        else if (strcmp("hw", key) == 0)
+            return lua_setbezierparameter(L, -1, wg, 0);
+    }
+    
     if (wg->jumptable->newindex)
     {
         const int output = wg->jumptable->newindex(L);

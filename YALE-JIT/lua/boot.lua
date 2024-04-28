@@ -22,6 +22,12 @@ function board.moves(piece,zone)
 	return {tile_a,tile_b}
 end
 
+function button:left_click()
+	frame.x = {frame.x,frame.x+100,frame.x,frame.x+100}
+	frame.y = {frame.y,frame.y,frame.y+100,frame.y+100}
+	frame.t = current_time()+1
+end
+
 --[[
 tile_a = board:tile{x=200,y=200,q=1,r=0,tile="hills"}
 tile_b = board:tile{x=400,y=200,q=0,r=0,tile="hills"}
