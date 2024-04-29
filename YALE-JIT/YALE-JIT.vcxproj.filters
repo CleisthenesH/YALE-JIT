@@ -101,6 +101,9 @@
     <ClCompile Include="frame.c">
       <Filter>widgets\HUD</Filter>
     </ClCompile>
+    <ClCompile Include="background.c">
+      <Filter>core</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="thread_pool.h">

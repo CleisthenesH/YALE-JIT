@@ -200,6 +200,7 @@
     <None Include="shaders\onscreen.vert" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="background.c" />
     <ClCompile Include="button.c" />
     <ClCompile Include="counter.c" />
     <ClCompile Include="drop_down.c" />
