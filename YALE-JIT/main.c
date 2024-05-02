@@ -19,7 +19,6 @@
 #include <lualib.h>
 #include <luajit.h>
 
-#define EASY_BACKGROUND
 #define EASY_BOARDER
 
 // Thread Pool includes
@@ -45,18 +44,15 @@ void resource_manager_init();
 ALLEGRO_EVENT_SOURCE* scheduler_init();
 void scheduler_generate_events();
 
+// Background includes
+void background_init();
+void background_draw();
+
 // Static variable declaration
 static ALLEGRO_DISPLAY* display;
 static ALLEGRO_EVENT_QUEUE* main_event_queue;
 struct thread_pool* thread_pool;
 static bool do_exit;
-
-// A simple background for testing
-#ifdef EASY_BACKGROUND
-static ALLEGRO_BITMAP* easy_background;
-const double easy_background_speed = 0;
-#include "material.h"
-#endif
 
 // A simple FPS Monitor
 #ifdef EASY_FPS
@@ -211,31 +207,6 @@ static inline void create_display()
 
     lua_pushinteger(lua_state, al_get_display_height(display));
     lua_setglobal(lua_state, "display_height");
-
-#ifdef EASY_BACKGROUND
-    easy_background = al_create_bitmap(al_get_display_width(display) + 100, al_get_display_height(display) + 100);
-
-    al_set_target_bitmap(easy_background);
-
-    // Keeping these here incase I change init call order
-    // 
-    //al_use_transform(&identity_transform);
-    //al_use_shader(NULL);
-
-    al_clear_to_color(al_color_name("aliceblue"));
-    unsigned int i, j;
-
-    const unsigned int height = al_get_display_height(display) / 10 + 10;
-    const unsigned int width = al_get_display_width(display) / 10 + 10;
-
-    for (i = 0; i <= width; i++)
-        for (j = 0; j <= height; j++)
-            if (i % 10 == 0 && j % 10 == 0)
-                al_draw_circle(10 * i, 10 * j, 2, al_color_name("darkgray"), 2);
-            else
-                al_draw_circle(10 * i, 10 * j, 1, al_color_name("grey"), 0);
-
-#endif
 
     al_set_target_bitmap(al_get_backbuffer(display));
 }
@@ -405,12 +376,7 @@ static inline void predraw()
 
     widget_interface_shader_predraw();
 
-#ifdef EASY_BACKGROUND
-    al_use_transform(&identity_transform);
-    material_apply(NULL);
-    const double easy_background_offset = -fmod(easy_background_speed * current_timestamp, 100);
-    al_draw_bitmap(easy_background, easy_background_offset, easy_background_offset, 0);
-#endif
+    background_draw();
 }
 
 void main()
@@ -433,6 +399,9 @@ void main()
     
     // Init Widgets
     widget_engine_init();
+
+    // Init Background
+    background_init(lua_state,display);
 
     // Resolve and Read Boot File
     lua_boot_file();
