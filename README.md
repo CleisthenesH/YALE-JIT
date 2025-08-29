@@ -1,7 +1,7 @@
-<!--Copyright 2023 Kieran W Harvie. All rights reserved.
+<!--Copyright 2023-2024 Kieran W Harvie. All rights reserved.
 	Use of this source code is governed by an MIT-style
 	license that can be found in the LICENSE file. -->
-**:warning:Under Construction:warning:**
+**:warning:While I'm proud of this repo and it was good learning experience it's now abandoned.:warning:**
 # :goat: YALE :goat:
 
 The Yale is a mythical goat like creature with an additional pair of tusks and horns that can swivel around.
@@ -18,7 +18,7 @@ But YALE also stands for "Yet Another Lua Engine", a succinct description of thi
 
 
 # Overview
-The goal of this project is to create GUI widget engine in pure-C [Allegro](https://liballeg.org/) that is scriptable by [Lua](https://www.lua.org/).
+The goal of this project is to create a GUI widget engine in pure-C [Allegro](https://liballeg.org/) that is scriptable by [Lua](https://www.lua.org/).
 And the core of this project is the widget interface stack with a system of inbuilt callbacks based on user generated events.
 
 The easiest way to show this would be showing the workflow for creating a button, setting it's location and text, and making it print to the console when clicked. 
@@ -79,34 +79,17 @@ Full documentation of featured coming in the future!
 
 # Why use YALE instead of other Lua game engine?
 As suggested by the repository title, I'm well aware that a lot of game engines exist.
-For those familiar with Lua in particular, the obvious question is why use YALE instead of [LÖVE](https://github.com/love2d/love)?
+For those familiar with Lua in particular, the obvious question is why use YALE instead of [LÃ–VE](https://github.com/love2d/love)?
 
-LÖVE is feature rich and well documented project with an active community and a history of releases going back decades.
-And the YALE engine is all the better for existing in an ecosystem with such high quality projects as LÖVE.
+LÃ–VE is feature rich and well documented project with an active community and a history of releases going back decades.
+And the YALE engine is all the better for existing in an ecosystem with such high quality projects as LÃ–VE.
 
 My end goal for YALE is to provide customized and inbuilt logic for board/card games.
-Until that time is reached LÖVE is the clear choice for most application,
+Until that time is reached LÃ–VE is the clear choice for most application,
 but I hope to see you on the other side :salute:
 
-# Why JIT?
+# JIT?
 LuaJIT is a Just-In-Time compiler for LUA that is meant to work as a drop in replacement for `lua51.dll`.
-It's included in the tile as this repo is a sequel to the [YALE engine](https://github.com/CleisthenesH/YALE) with updates including:
-
-- LuaJIT compatibility.
-- Stronger typing.
-- Folding board_manager into the core widget_interface.
-- Big changes to widget memory layout:
-	- Improved caching.
-	- Better use of anonymous structs. 
-	- Folding in to tweener and render_interface into the core widget code.
-	- If a requested key isn't reserved, lua uses it goes into the fenv table.
-- Incorporation of general improved Lua knowledge into the architecture.
-
-These are some pretty big changes so I decided on a pseudo-rewrite of the engine where I started blank and copied over features one at a time while making the required changes.
-I comforted myself through this process by saying:
-> Good programmers throw out a lot of code.
-
-Check [the original](https://github.com/CleisthenesH/YALE) for comparison and more info.
 
 # Acknowledgments
 ## Code
